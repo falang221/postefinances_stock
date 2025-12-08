@@ -1,0 +1,345 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-py"
+  output   = "./generated/prisma"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String?
+  name         String
+  password     String
+  role         UserRole
+  department   String? // Service du chef (ex: "Comptabilité", "RH")
+  refreshToken String?  @unique // NEW: Refresh token for persistent sessions
+
+  // Relations
+  requestsCreated Request[] @relation("RequestCreator")
+
+  requestsApproved          Request[]         @relation("ApprovedBy")
+  requestsReceived          Request[]         @relation("ReceivedBy")
+  approvals                 Approval[]        @relation("ApprovalUser")
+  transactions              Transaction[]
+  requestedStockAdjustments StockAdjustment[] @relation("RequestedStockAdjustment")
+  approvedStockAdjustments  StockAdjustment[] @relation("ApprovedStockAdjustment")
+  requestedStockReceipts    StockReceipt[]    @relation("RequestedStockReceipt")
+  approvedStockReceipts     StockReceipt[]    @relation("ApprovedStockReceipt")
+
+  // Purchase Orders
+  requestedPurchaseOrders PurchaseOrder[] @relation("RequestedPurchaseOrder")
+  approvedPurchaseOrders  PurchaseOrder[] @relation("ApprovedPurchaseOrder")
+
+  // Inventory Audits
+  createdAudits InventoryAudit[] @relation("CreatedAudits")
+
+  createdAt DateTime @default(now())
+}
+
+model Request {
+  id                    String        @id @default(cuid())
+  requestNumber         String        @unique @default(cuid())
+  status                RequestStatus @default(BROUILLON)
+  requesterObservations String?
+
+  // Demande initiale
+  requesterId String
+  requester   User   @relation("RequestCreator", fields: [requesterId], references: [id])
+
+  // Articles demandés
+  items RequestItem[]
+
+  // Approbation DAF
+  approvedAt   DateTime?
+  approvedById String?
+  approvedBy   User?     @relation("ApprovedBy", fields: [approvedById], references: [id])
+
+  // Validation réception
+  receivedAt   DateTime?
+  receivedById String?
+  receivedBy   User?     @relation("ReceivedBy", fields: [receivedById], references: [id])
+
+  // Historique approbations
+  approvals Approval[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RequestItem {
+  id        String  @id @default(cuid())
+  requestId String
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  // Quantités
+  requestedQty Int // Demande chef service
+  approvedQty  Int? // Quantité validée DAF
+
+  itemDisputeReason  DisputeReason?
+  itemDisputeComment String?
+  itemDisputeStatus  RequestItemDisputeStatus @default(NO_DISPUTE)
+
+  createdAt DateTime @default(now())
+}
+
+model Approval {
+  id        String  @id @default(cuid())
+  requestId String
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("ApprovalUser", fields: [userId], references: [id])
+
+  role     UserRole // Qui a approuvé (MAGAISINIER, DAF)
+  decision ApprovalDecision
+  comment  String?
+
+  createdAt DateTime @default(now())
+}
+
+model Product {
+  id         String   @id @default(cuid())
+  name       String
+  reference  String   @unique
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  quantity   Int      @default(0)
+  minStock   Int      @default(5)
+  cost       Float    @default(0.0)
+  unit       String
+  location   String?
+
+  requestItems        RequestItem[]
+  transactions        Transaction[]
+  stockAdjustments    StockAdjustment[]
+  stockReceipts       StockReceipt[]
+  purchaseOrderItems  PurchaseOrderItem[]
+  inventoryAuditItems InventoryAuditItem[]
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  products Product[]
+}
+
+model Transaction {
+  id        String            @id @default(cuid())
+  productId String
+  product   Product           @relation(fields: [productId], references: [id])
+  userId    String
+  user      User              @relation(fields: [userId], references: [id])
+  type      TransactionType
+  source    TransactionSource @default(ADJUSTMENT) // Default to ADJUSTMENT for existing logic
+  quantity  Int
+  createdAt DateTime          @default(now())
+}
+
+model StockAdjustment {
+  id            String                @id @default(cuid())
+  productId     String
+  product       Product               @relation(fields: [productId], references: [id])
+  quantity      Int
+  type          TransactionType // Reusing TransactionType for ENTREE/SORTIE
+  reason        String
+  requestedById String
+  requestedBy   User                  @relation("RequestedStockAdjustment", fields: [requestedById], references: [id])
+  status        StockAdjustmentStatus @default(PENDING)
+  approvedById  String?
+  approvedBy    User?                 @relation("ApprovedStockAdjustment", fields: [approvedById], references: [id])
+  approvedAt    DateTime?
+  dafComment    String?
+
+  // Link to inventory audit
+  inventoryAuditId String?
+  inventoryAudit   InventoryAudit? @relation(fields: [inventoryAuditId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StockReceipt {
+  id            String             @id @default(cuid())
+  productId     String
+  product       Product            @relation(fields: [productId], references: [id])
+  quantity      Int
+  supplierName  String?
+  batchNumber   String?
+  requestedById String
+  requestedBy   User               @relation("RequestedStockReceipt", fields: [requestedById], references: [id])
+  status        StockReceiptStatus @default(PENDING)
+  approvedById  String?
+  approvedBy    User?              @relation("ApprovedStockReceipt", fields: [approvedById], references: [id])
+  approvedAt    DateTime?
+  dafComment    String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+}
+
+model PurchaseOrder {
+  id          String              @id @default(cuid())
+  orderNumber String              @unique @default(cuid())
+  status      PurchaseOrderStatus @default(DRAFT)
+
+  requestedById String
+  requestedBy   User   @relation("RequestedPurchaseOrder", fields: [requestedById], references: [id])
+
+  approvedById String?
+  approvedBy   User?   @relation("ApprovedPurchaseOrder", fields: [approvedById], references: [id])
+
+  supplierName String?
+  totalAmount  Float   @default(0.0)
+
+  items PurchaseOrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  quantity   Int
+  unitPrice  Float
+  totalPrice Float
+}
+
+model Counter {
+  id         String @id @default(cuid())
+  type       String // e.g., "REQUEST", "PURCHASE_ORDER"
+  year       Int
+  lastNumber Int    @default(0)
+
+  @@unique([type, year]) // Ensure uniqueness per type and year
+}
+
+model InventoryAudit {
+  id          String               @id @default(cuid())
+  auditNumber String               @unique
+  status      InventoryAuditStatus @default(IN_PROGRESS)
+  createdById String
+  createdBy   User                 @relation("CreatedAudits", fields: [createdById], references: [id])
+
+  items            InventoryAuditItem[]
+  stockAdjustments StockAdjustment[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+}
+
+model InventoryAuditItem {
+  id      String         @id @default(cuid())
+  auditId String
+  audit   InventoryAudit @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  systemQuantity  Int
+  countedQuantity Int?
+  discrepancy     Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([auditId, productId])
+}
+
+// Enumérations
+enum UserRole {
+  CHEF_SERVICE
+  MAGASINIER
+  DAF
+  ADMIN
+  SUPER_OBSERVATEUR
+}
+
+enum RequestStatus {
+  BROUILLON
+  SOUMISE
+  TRANSMISE
+  APPROUVEE
+  REJETEE
+  LIVREE_PAR_MAGASINIER // New status
+  RECEPTION_CONFIRMEE // New status
+  ANNULEE
+  LITIGE_RECEPTION
+}
+
+enum StockAdjustmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum StockReceiptStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalDecision {
+  PROPOSITION
+  APPROUVE
+  REJETE
+  MODIFIE
+  LITIGE_RESOLU_APPROUVE
+  LITIGE_RESOLU_REJETE
+}
+
+enum TransactionType {
+  ENTREE
+  SORTIE
+}
+
+enum TransactionSource {
+  RECEIPT
+  REQUEST
+  ADJUSTMENT
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  ORDERED
+  RECEIVED
+}
+
+enum InventoryAuditStatus {
+  IN_PROGRESS
+  COMPLETED
+  RECONCILIATION_PENDING
+  CLOSED
+}
+
+enum DisputeReason {
+  QUANTITE_INCORRECTE
+  ARTICLE_ENDOMMAGE
+  MAUVAIS_ARTICLE
+  AUTRE
+}
+
+enum RequestItemDisputeStatus {
+  NO_DISPUTE
+  REPORTED
+  RESOLVED_APPROVED
+  RESOLVED_REJECTED
+}

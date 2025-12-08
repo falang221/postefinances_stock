@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "RequestStatus" ADD VALUE 'LITIGE_RECEPTION';

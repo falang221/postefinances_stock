@@ -1,0 +1,77 @@
+# .github/workflows/ci.yml
+name: CI Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' # Match your project's Python version
+
+      - name: Install PDM
+        run: |
+          curl -sSL https://raw.githubusercontent.com/pdm-project/pdm/main/install-pdm.py | python -
+          echo "$HOME/.pdm/bin" >> $GITHUB_PATH
+
+      - name: Restore PDM cache
+        id: cache-pdm-dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pdm
+          key: ${{ runner.os }}-pdm-${{ hashFiles('backend/pdm.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pdm-
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: pdm install --no-self --no-default --dev
+
+      - name: Run backend tests
+        working-directory: ./backend
+        run: |
+          # Use `python -m pytest` as `pdm run pytest` seems to have issues in your local setup
+          # This ensures that pytest-cov is used via direct module execution
+          . .venv/bin/activate # Activate venv for pytest to find all dependencies
+          python -m pytest --cov=app --cov-report=xml # --cov-report=xml for SonarCloud/Codecov integration
+
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Or your project's Node.js version
+
+      - name: Restore npm cache
+        id: cache-npm-dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run frontend tests
+        working-directory: ./frontend
+        run: npm test

@@ -1,0 +1,184 @@
+<state_snapshot>
+    <overall_goal>
+        Develop a full-stack stock management application by implementing requested features and resolving any issues, focusing on stock receipt approval workflows and continuous UI modernization.
+    </overall_goal>
+
+    <key_knowledge>
+        - **Application Stack:** Backend (FastAPI, Prisma ORM, PostgreSQL, PDM), Frontend (Next.js, React, TypeScript, npm, Material UI).
+        - **Authentication:** JWT-based login, secure password hashing, role-based access control (CHEF_SERVICE, MAGASINIER, DAF, ADMIN).
+        - **Core Request Workflow:** ChefService creates requests, Magasinier proposes quantities, DAF approves/rejects/modifies, Magasinier confirms delivery, ChefService validates reception.
+        - **Admin Features:** CRUD for Users, Products, Categories.
+        - **Real-time Notifications:** Implemented using WebSockets.
+        - **Search and Filtering:** Functional across Products, Users, and Requests dashboards.
+        - **Stock Adjustment Feature:** Allows Magasinier to initiate adjustments requiring DAF approval, and Admin to make direct adjustments. Fully implemented and verified.
+        - **Stock Receipt Feature (FULLY IMPLEMENTED):**
+            - Magasinier can initiate single or batch stock receipts.
+            - Magasinier-initiated receipts require DAF approval (status 'PENDING').
+            - Admin-initiated receipts are applied directly (status 'APPROVED').
+            - DAF can view pending receipts and approve/reject them.
+            - Notifications are sent to DAFs for new pending requests and to Magasiniers about approval decisions.
+            - User confirmed this workflow (single and batch) is fully functional.
+        - **UI Modernization (COMPLETED):** Material UI integration completed. The `Login` component has been refactored, and a global MUI theme has been set up. Dashboards contain basic styling.
+        - **Stock Report Feature (IMPLEMENTED, ENHANCED & PAGINATED):**
+            - Backend API endpoint `/products/report` added to generate comprehensive stock reports.
+            - `/products/report` endpoint modified to accept filtering (product name, reference, category name, low stock) and sorting (name, quantity, last adjustment, last receipt) parameters.
+            - **`/products/report` endpoint modified to accept pagination (`skip`, `limit`) parameters and return `totalItems`.**
+            - Frontend `StockReport` component created to fetch and display report data.
+            - `StockReport` component integrated into `AdminDashboard.tsx` with a toggle button.
+            - `StockReport` component enhanced with UI elements (Textfields, Checkbox, Selects, Button) for filtering and sorting, and updated `fetchStockReport` to send these parameters.
+            - **`StockReport` component enhanced with UI elements (Pagination, Select for rows per page) for pagination, and updated `fetchStockReport` to send these parameters and handle `totalItems`.**
+            - **`StockReportResponse` Pydantic model in `backend/app/api/schemas.py` modified to include `totalItems`.**
+        - **Resolved Issues:**
+            - Various `NameError`s related to `StockReceiptResponse`, `StockReceiptDecision`, `StockReceiptStatus` imports in backend.
+            - Frontend native HTML validation (`required`, `min="1"`) interfering with batch receipt form submission logic.
+            - Parsing ecmascript source code failed in `MagasinierDashboard.tsx` due to a duplicate and unreachable code block.
+            - Parsing ecmascript source code failed in `MagasinierDashboard.tsx` due to a missing closing curly brace for the `handleConfirmDelivery` function.
+            - Type mismatch in `frontend/src/app/dashboard/admin/page.tsx` (`DecodedToken` vs `User`).
+            - Type mismatch in `frontend/src/app/dashboard/chef-service/page.tsx` (`DecodedToken` vs `User`).
+            - Type mismatch in `frontend/src/app/dashboard/daf/page.tsx` (`DecodedToken` vs `User`).
+            - Type mismatch in `frontend/src/app/dashboard/magasinier/page.tsx` (`DecodedToken` vs `User`).
+            - `onLogin` prop not existing on `Login` component in `frontend/src/app/page.tsx`.
+            - Type mismatch for `department` property in `User` interface between `Dashboard.tsx` and other dashboard components.
+            - `SelectChangeEvent` not found in `AdminDashboard.tsx` and `MagasinierDashboard.tsx`.
+            - Type incompatibility for `onChange` handlers in `AdminDashboard.tsx` and `MagasinierDashboard.tsx` when using Material UI `Select` components.
+            - `useEffect` not defined in `frontend/src/app/page.tsx`.
+            - Hydration mismatch error in `frontend/src/app/layout.tsx` due to Material UI `ThemeProvider`.
+            - Runtime `SecurityError` (likely due to backend not running or transient issue).
+    </key_knowledge>
+
+    <file_system_state>
+        - **MODIFIED:** `backend/prisma/schema.prisma` - Added `StockAdjustment` & `StockReceipt` models; `StockAdjustmentStatus`, `StockReceiptStatus`, `TransactionSource` enums; updated `User` and `Product` models with relevant relations; added `source` field to `Transaction` model.
+        - **MODIFIED:** `backend/app/api/schemas.py` - Added `StockAdjustmentType`, `StockAdjustmentCreate`, `StockAdjustmentResponse`, `StockAdjustmentDecision`, `StockReceiptCreate`, `StockReceiptItemCreate`, `BatchStockReceiptCreate`, `StockReceiptResponse`, `StockReceiptDecision`, `StockReportProduct`, `StockReportItem`, `StockReportResponse`. Corrected `prisma.enums` import path. **`StockReportResponse` Pydantic model modified to include `totalItems`.**
+        - **MODIFIED:** `backend/app/api/routes/product.py` -
+            - `get_all_products` updated for search.
+            - `adjust_stock` endpoint modified for Magasinier/Admin logic.
+            - `decide_stock_adjustment` endpoint added.
+            - `get_my_stock_adjustments` and `get_pending_stock_adjustments` endpoints added.
+            - `receive_stock` endpoint modified for DAF approval flow (Magasinier creates `PENDING`, Admin `APPROVED`).
+            - `receive_stock_batch` endpoint added for batch processing (Magasinier `PENDING`, Admin `APPROVED`).
+            - `decide_stock_receipt` endpoint added (DAF approves/rejects).
+            - `get_my_stock_receipts` endpoint added (Magasinier views their receipts).
+            - `get_pending_stock_receipts` endpoint added (DAF views pending receipts).
+            - Corrected imports for `StockReceiptResponse`, `StockReceiptDecision`, `StockReceiptStatus`.
+            - Added new API endpoint `/products/report` to generate comprehensive stock reports.
+            - Modified `/products/report` endpoint to accept filtering (product name, reference, category name, low stock) and sorting (name, quantity, last adjustment, last receipt) parameters.
+            - **Modified `/products/report` endpoint to accept pagination (`skip`, `limit`) parameters and return `totalItems`.**
+        - **MODIFIED:** `backend/app/api/auth.py` - `role_required` updated to accept list of roles.
+        - **MODIFIED:** `backend/seed.py` - Passwords are now hashed.
+        - **MODIFIED:** `frontend/src/components/AdminDashboard.tsx` -
+            - Added search for products/users; added UI for stock adjustment. `handleAdjustSubmit` updated for approval workflow.
+            - Refactored to use Material UI components and Snackbar for notifications.
+            - Replaced native `confirm()` dialogs with Material UI `Dialog` components.
+            - Implemented more sophisticated form handling and validation feedback using MUI for User, Category, Product, and Stock Adjustment forms.
+            - Replaced `CircularProgress` indicators with `Skeleton` components for loading states.
+            - Added `maxWidth` and centered the main `Box` for improved responsiveness.
+            - Updated type definition for `handleUserFormChange`, `handleProductFormChange`, and `handleAdjustFormChange` to include `SelectChangeEvent<string>` and imported `SelectChangeEvent`.
+            - Integrated `StockReport` component with a toggle button.
+        - **MODIFIED:** `frontend/src/components/MagasinierDashboard.tsx` -
+            - Added search for requests.
+            - Added product list display.
+            - Added UI for initiating stock adjustments.
+            - Added list for "My Stock Adjustments".
+            - Added UI for initiating single stock receipts.
+            - Added `StockReceipt` interface and states (`stockReceipts`, `isLoadingReceipts`).
+            - Added `fetchStockReceipts` function and called it.
+            - Added UI section "Mes Demandes de Réception de Stock".
+            - Added `StockReceiptItemCreate` interface and states for batch receipts (`isBatchReceiptFormVisible`, `batchReceiptItems`, `currentBatchItem`).
+            - Added functions `handleBatchReceiptItemChange`, `handleAddBatchItem`, `handleRemoveBatchItem`, `handleBatchReceiptSubmit`, `resetBatchReceiptForm`.
+            - Added UI for batch receipt form and a button to toggle its visibility.
+            - Removed `required` and `min="1"` attributes from batch receipt form input fields.
+            - Refactored to use Material UI components and Snackbar for notifications.
+            - Replaced native `confirm()` dialogs with Material UI `Dialog` components.
+            - Implemented more sophisticated form handling and validation feedback using MUI for Stock Adjustment, Single Stock Receipt, and Batch Stock Receipt forms.
+            - Replaced `CircularProgress` indicators with `Skeleton` components for loading states.
+            - Added `maxWidth` and centered the main `Box` for improved responsiveness.
+            - Removed duplicate and unreachable code block in `handleConfirmDelivery`.
+            - Added missing closing curly brace for `handleConfirmDelivery` function.
+            - Updated `User` interface to include `email`, `role`, and `department`.
+            - Updated type definition for `handleAdjustFormChange`, `handleReceiptFormChange`, and `handleBatchReceiptItemChange` to include `SelectChangeEvent<string>` and imported `SelectChangeEvent`.
+        - **MODIFIED:** `frontend/src/components/DAFDashboard.tsx` -
+            - Added search for requests.
+            - Added list for "Pending Stock Adjustments" with approve/reject actions.
+            - Added `StockReceipt` interface and states (`pendingReceipts`, `isLoadingReceipts`).
+            - Added `fetchPendingReceipts` function and called it.
+            - Added `handleReceiptDecision` function.
+            - Added UI section "Réceptions de Stock en Attente".
+            - Refactored to use Material UI components and Snackbar for notifications.
+            - Replaced native `prompt()` dialogs with Material UI `Dialog` components.
+            - Implemented more sophisticated form handling and validation feedback using MUI for the Request Approval Form (for modifying quantities).
+            - Replaced `CircularProgress` indicators with `Skeleton` components for loading states.
+            - Added `maxWidth` and centered the main `Box` for improved responsiveness.
+            - Updated `User` interface to include `email`, `role`, and `department`.
+        - **MODIFIED:** `frontend/src/components/Login.tsx` - Refactored to use Material UI components.
+        - **CREATED:** `frontend/src/theme.ts` - Defined a custom Material UI theme.
+        - **MODIFIED:** `frontend/src/app/layout.tsx` - Integrated Material UI `ThemeProvider` and `CssBaseline` via `ThemeRegistry`.
+        - **MODIFIED:** `frontend/src/components/WebSocketProvider.tsx` - Improved WebSocket error logging.
+        - **MODIFIED:** `frontend/package.json` / `package-lock.json` - Added Material UI dependencies.
+        - **MODIFIED:** `frontend/src/app/page.tsx` - Simplified to act as an authentication router, rendering `Login` if not authenticated or redirecting to `/dashboard` if authenticated. Imported `useEffect`.
+        - **MODIFIED:** `frontend/src/components/GlobalDashboardStats.tsx` - Refactored to use Material UI components (`Card`, `CardContent`, `Typography`, `Alert`, `Skeleton`) for improved visual consistency and loading feedback.
+        - **MODIFIED:** `frontend/src/app/dashboard/admin/page.tsx` - Added `User` interface, mapped `DecodedToken` to `User`, and changed `user` state type.
+        - **MODIFIED:** `frontend/src/app/dashboard/chef-service/page.tsx` - Added `User` interface, mapped `DecodedToken` to `User`, and changed `user` state type, and made `department` a required string in `User` interface.
+        - **MODIFIED:** `frontend/src/app/dashboard/daf/page.tsx` - Added `User` interface, mapped `DecodedToken` to `User`, and changed `user` state type, and made `department` a required string in `User` interface.
+        - **MODIFIED:** `frontend/src/app/dashboard/magasinier/page.tsx` - Added `User` interface, mapped `DecodedToken` to `User`, and changed `user` state type, and made `department` a required string in `User` interface.
+        - **MODIFIED:** `frontend/src/components/Dashboard.tsx` - Refactored to handle token retrieval, user decoding, and role-based rendering internally. Updated `User` interface to make `department` a required string and provided a default value when creating the `User` object.
+        - **CREATED:** `frontend/src/components/ThemeRegistry.tsx` - Component to handle Material UI's server-side rendering for hydration.
+        - **MODIFIED:** `frontend/src/components/StockReport.tsx` - New React component to display stock report data, now enhanced with UI elements for filtering and sorting, and updated `fetchStockReport` to send these parameters. **Enhanced with UI elements (Pagination, Select for rows per page) for pagination, and updated `fetchStockReport` to send these parameters and handle `totalItems`.**
+    </file_system_state>
+
+    <recent_actions>
+        - Successfully implemented the full stock adjustment approval workflow (backend logic and frontend UI for Admin, Magasinier, and DAF).
+        - Successfully implemented the full stock receipt approval workflow (single and batch) with DAF approval, including backend schemas, endpoints, and frontend UI for Magasinier and DAF.
+        - Resolved several `NameError`s in the backend related to missing imports.
+        - Resolved frontend native HTML validation issues in the batch stock receipt form.
+        - User confirmed that the stock receipt workflow (single item and batch) is fully functional.
+        - Provided a list of suggestions for further UI/UX and architectural improvements.
+        - Refactored `Login.tsx`, `MagasinierDashboard.tsx`, `DAFDashboard.tsx`, and `AdminDashboard.tsx` to extensively use Material UI components and `Snackbar` for notifications.
+        - Replaced all native `confirm()` and `prompt()` dialogs in `MagasinierDashboard.tsx`, `DAFDashboard.tsx`, and `AdminDashboard.tsx` with Material UI `Dialog` components for a consistent user experience.
+        - Implemented more sophisticated form handling and validation feedback using MUI for all forms in `AdminDashboard.tsx` (User, Category, Product, and Stock Adjustment forms).
+        - Implemented more sophisticated form handling and validation feedback using MUI for all forms in `MagasinierDashboard.tsx` (Stock Adjustment, Single Stock Receipt, and Batch Stock Receipt forms).
+        - Implemented more sophisticated form handling and validation feedback using MUI for forms in `DAFDashboard.tsx`.
+        - Replaced all `CircularProgress` indicators with `Skeleton` components for loading states in `AdminDashboard.tsx`, `MagasinierDashboard.tsx`, and `DAFDashboard.tsx`.
+        - Refactored the application header in `frontend/src/app/page.tsx` to use Material UI components for improved consistency and accessibility.
+        - Refactored `GlobalDashboardStats.tsx` to use Material UI components (`Card`, `CardContent`, `Typography`, `Alert`, `Skeleton`) for improved visual consistency and loading feedback.
+        - Reviewed and improved overall responsiveness of the main content areas of all three dashboards (`AdminDashboard.tsx`, `MagasinierDashboard.tsx`, and `DAFDashboard.tsx`) by adding a `maxWidth` and centering the main `Box` component.
+        - Fixed a build error in `MagasinierDashboard.tsx` by removing a duplicate and unreachable code block.
+        - Fixed a build error in `MagasinierDashboard.tsx` by adding a missing closing curly brace for the `handleConfirmDelivery` function.
+        - Fixed type mismatches in `frontend/src/app/dashboard/admin/page.tsx`, `frontend/src/app/dashboard/chef-service/page.tsx`, `frontend/src/app/dashboard/daf/page.tsx`, and `frontend/src/app/dashboard/magasinier/page.tsx` by aligning `DecodedToken` to `User` interface and updating state types.
+        - Fixed the `onLogin` prop issue in `frontend/src/app/page.tsx` by simplifying it to act as an authentication router.
+        - Fixed type mismatches and `SelectChangeEvent` issues in `AdminDashboard.tsx` and `MagasinierDashboard.tsx` by correctly typing `onChange` handlers and importing `SelectChangeEvent`.
+        - Fixed type mismatch for `department` property in `User` interface in `frontend/src/components/Dashboard.tsx` and provided a default value.
+        - Fixed "Cannot update a component (`Router`) while rendering a different component (`Home`)" error by moving `router.push` into `useEffect` in `frontend/src/app/page.tsx`.
+        - Fixed "useEffect is not defined" error by importing `useEffect` in `frontend/src/app/page.tsx`.
+        - Fixed Hydration mismatch error by implementing `ThemeRegistry` in `frontend/src/components/ThemeRegistry.tsx` and integrating it into `frontend/src/app/layout.tsx`.
+        - Resolved runtime `SecurityError` (likely due to backend not running or transient issue) as confirmed by the user.
+        - Implemented backend API endpoint `/products/report` and new Pydantic schemas for stock report generation.
+        - Created `frontend/src/components/StockReport.tsx` component to display stock report data.
+        - Integrated `StockReport` component into `AdminDashboard.tsx` with a toggle button.
+        - Enhanced backend `/products/report` endpoint to accept filtering and sorting parameters.
+        - Enhanced `StockReport` component with UI elements for filtering and sorting, and updated `fetchStockReport` to send these parameters.
+        - **Implemented pagination for the stock report feature (backend API and frontend integration).**
+    </recent_actions>
+
+    <current_plan>
+        1. [DONE] Implement backend for Stock Receipt approval workflow (schema, endpoints).
+        2. [DONE] Implement frontend for Magasinier to initiate Single Stock Receipt.
+        3. [DONE] Implement frontend for DAF to approve/reject Single Stock Receipts.
+        4. [DONE] Implement backend for Batch Stock Receipt.
+        5. [DONE] Implement frontend for Magasinier to initiate Batch Stock Receipts.
+        6. [DONE] User confirmed stock receipt (single & batch) approval workflow is working.
+        7. [DONE] Refactor `Login.tsx`, `MagasinierDashboard.tsx`, `DAFDashboard.tsx`, and `AdminDashboard.tsx` to extensively use Material UI components and `Snackbar` for notifications.
+        8. [DONE] Replace native `confirm()` and `prompt()` dialogs with Material UI `Dialog` components for a consistent user experience.
+        9. [DONE] Implement more sophisticated form handling and validation feedback using MUI for all forms in `AdminDashboard.tsx`.
+        10. [DONE] Implement more sophisticated form handling and validation feedback using MUI for all forms in `MagasinierDashboard.tsx`.
+        11. [DONE] Implement more sophisticated form handling and validation feedback using MUI for forms in `DAFDashboard.tsx`.
+        12. [DONE] Add more visual feedback for loading states (e.g., skeleton loaders) for all dashboard components.
+        13. [DONE] Refactor the application header in `frontend/src/app/page.tsx` to use Material UI components.
+        14. [DONE] Refactor `GlobalDashboardStats.tsx` to use Material UI components.
+        15. [DONE] Review and improve overall responsiveness and accessibility of the application (main content areas of the dashboards).
+        16. [DONE] Resolve all frontend build errors related to type mismatches and parsing.
+        17. [DONE] Ensure backend is running and communicating correctly with the frontend.
+        18. [DONE] Implement basic stock report generation feature (backend API and frontend integration).
+        19. [DONE] Enhance stock report feature with filtering and sorting capabilities (backend API and frontend integration).
+        20. [DONE] Add pagination to the stock report feature (backend API and frontend integration).
+    </current_plan>
+</state_snapshot>

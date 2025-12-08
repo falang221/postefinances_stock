@@ -1,0 +1,19 @@
+// tsconfig.jest.json
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS", // Jest typically runs in a Node.js environment, which uses CommonJS
+    "types": ["jest", "node", "@testing-library/jest-dom"],
+    "jsx": "react-jsx", // Specify JSX factory for React 17+
+    "allowJs": true,
+    "esModuleInterop": true
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.jsx",
+    "jest.setup.ts" // Include your setup file
+  ],
+  "exclude": ["node_modules", ".next", "out", "frontend/cypress"]
+}

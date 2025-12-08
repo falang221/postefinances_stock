@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Product" ADD COLUMN     "maxStock" INTEGER NOT NULL DEFAULT 100;

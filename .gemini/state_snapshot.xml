@@ -1,0 +1,130 @@
+<state_snapshot>
+    <overall_goal>
+        Develop a full-stack stock management application by implementing requested features and resolving any issues, focusing on stock receipt approval workflows and continuous UI modernization.
+    </overall_goal>
+
+    <key_knowledge>
+        - **Application Stack:** Backend (FastAPI, Prisma ORM, PostgreSQL, PDM), Frontend (Next.js, React, TypeScript, npm, Material UI).
+        - **Authentication:** JWT-based login, secure password hashing, role-based access control (CHEF_SERVICE, MAGASINIER, DAF, ADMIN).
+        - **Core Request Workflow:** ChefService creates requests, Magasinier proposes quantities, DAF approves/rejects/modifies, Magasinier confirms delivery, ChefService validates reception.
+        - **Admin Features:** CRUD for Users, Products, Categories.
+        - **Real-time Notifications:** Implemented using WebSockets.
+        - **Search and Filtering:** Functional across Products, Users, and Requests dashboards.
+        - **Stock Adjustment Feature:** Allows Magasinier to initiate adjustments requiring DAF approval, and Admin to make direct adjustments. Fully implemented and verified.
+        - **Stock Receipt Feature (FULLY IMPLEMENTED):**
+            - Magasinier can initiate single or batch stock receipts.
+            - Magasinier-initiated receipts require DAF approval (status 'PENDING').
+            - Admin-initiated receipts are applied directly (status 'APPROVED').
+            - DAF can view pending receipts and approve/reject them.
+            - Notifications are sent to DAFs for new pending requests and to Magasiniers about approval decisions.
+            - User confirmed this workflow (single and batch) is fully functional.
+        - **UI Modernization (IN PROGRESS):** Material UI integration started. The `Login` component has been refactored, and a global MUI theme has been set up. Dashboards contain basic styling.
+        - **Resolved Issues:**
+            - Various `NameError`s related to `StockReceiptResponse`, `StockReceiptDecision`, `StockReceiptStatus` imports in backend.
+            - Frontend native HTML validation (`required`, `min="1"`) interfering with batch receipt form submission logic.
+            - Parsing ecmascript source code failed in `MagasinierDashboard.tsx` due to a duplicate and unreachable code block.
+            - **Parsing ecmascript source code failed in `MagasinierDashboard.tsx` due to a missing closing curly brace for the `handleConfirmDelivery` function.**
+    </key_knowledge>
+
+    <file_system_state>
+        - **MODIFIED:** `backend/prisma/schema.prisma` - Added `StockAdjustment` & `StockReceipt` models; `StockAdjustmentStatus`, `StockReceiptStatus`, `TransactionSource` enums; updated `User` and `Product` models with relevant relations; added `source` field to `Transaction` model.
+        - **MODIFIED:** `backend/app/api/schemas.py` - Added `StockAdjustmentType`, `StockAdjustmentCreate`, `StockAdjustmentResponse`, `StockAdjustmentDecision`, `StockReceiptCreate`, `StockReceiptItemCreate`, `BatchStockReceiptCreate`, `StockReceiptResponse`, `StockReceiptDecision`. Corrected `prisma.enums` import path.
+        - **MODIFIED:** `backend/app/api/routes/product.py` -
+            - `get_all_products` updated for search.
+            - `adjust_stock` endpoint modified for Magasinier/Admin logic.
+            - `decide_stock_adjustment` endpoint added.
+            - `get_my_stock_adjustments` and `get_pending_stock_adjustments` endpoints added.
+            - `receive_stock` endpoint modified for DAF approval flow (Magasinier creates `PENDING`, Admin `APPROVED`).
+            - `receive_stock_batch` endpoint added for batch processing (Magasinier `PENDING`, Admin `APPROVED`).
+            - `decide_stock_receipt` endpoint added (DAF approves/rejects).
+            - `get_my_stock_receipts` endpoint added (Magasinier views their receipts).
+            - `get_pending_stock_receipts` endpoint added (DAF views pending receipts).
+            - Corrected imports for `StockReceiptResponse`, `StockReceiptDecision`, `StockReceiptStatus`.
+        - **MODIFIED:** `backend/app/api/auth.py` - `role_required` updated to accept list of roles.
+        - **MODIFIED:** `backend/seed.py` - Passwords are now hashed.
+        - **MODIFIED:** `frontend/src/components/AdminDashboard.tsx` -
+            - Added search for products/users; added UI for stock adjustment. `handleAdjustSubmit` updated for approval workflow.
+            - Refactored to use Material UI components and Snackbar for notifications.
+            - Replaced native `confirm()` dialogs with Material UI `Dialog` components.
+            - Implemented more sophisticated form handling and validation feedback using MUI for User, Category, Product, and Stock Adjustment forms.
+            - Replaced `CircularProgress` indicators with `Skeleton` components for loading states.
+            - Added `maxWidth` and centered the main `Box` for improved responsiveness.
+        - **MODIFIED:** `frontend/src/components/MagasinierDashboard.tsx` -
+            - Added search for requests.
+            - Added product list display.
+            - Added UI for initiating stock adjustments.
+            - Added list for "My Stock Adjustments".
+            - Added UI for initiating single stock receipts.
+            - Added `StockReceipt` interface and states (`stockReceipts`, `isLoadingReceipts`).
+            - Added `fetchStockReceipts` function and called it.
+            - Added UI section "Mes Demandes de Réception de Stock".
+            - Added `StockReceiptItemCreate` interface and states for batch receipts (`isBatchReceiptFormVisible`, `batchReceiptItems`, `currentBatchItem`).
+            - Added functions `handleBatchReceiptItemChange`, `handleAddBatchItem`, `handleRemoveBatchItem`, `handleBatchReceiptSubmit`, `resetBatchReceiptForm`.
+            - Added UI for batch receipt form and a button to toggle its visibility.
+            - Removed `required` and `min="1"` attributes from batch receipt form input fields.
+            - Refactored to use Material UI components and Snackbar for notifications.
+            - Replaced native `confirm()` dialogs with Material UI `Dialog` components.
+            - Implemented more sophisticated form handling and validation feedback using MUI for Stock Adjustment, Single Stock Receipt, and Batch Stock Receipt forms.
+            - Replaced `CircularProgress` indicators with `Skeleton` components for loading states.
+            - Added `maxWidth` and centered the main `Box` for improved responsiveness.
+            - Removed duplicate and unreachable code block in `handleConfirmDelivery`.
+            - **Added missing closing curly brace for `handleConfirmDelivery` function.**
+        - **MODIFIED:** `frontend/src/components/DAFDashboard.tsx` -
+            - Added search for requests.
+            - Added list for "Pending Stock Adjustments" with approve/reject actions.
+            - Added `StockReceipt` interface and states (`pendingReceipts`, `isLoadingReceipts`).
+            - Added `fetchPendingReceipts` function and called it.
+            - Added `handleReceiptDecision` function.
+            - Added UI section "Réceptions de Stock en Attente".
+            - Refactored to use Material UI components and Snackbar for notifications.
+            - Replaced native `prompt()` dialogs with Material UI `Dialog` components.
+            - Implemented more sophisticated form handling and validation feedback using MUI for the Request Approval Form (for modifying quantities).
+            - Replaced `CircularProgress` indicators with `Skeleton` components for loading states.
+            - Added `maxWidth` and centered the main `Box` for improved responsiveness.
+        - **MODIFIED:** `frontend/src/components/Login.tsx` - Refactored to use Material UI components.
+        - **CREATED:** `frontend/src/theme.ts` - Defined a custom Material UI theme.
+        - **MODIFIED:** `frontend/src/app/layout.tsx` - Integrated Material UI `ThemeProvider` and `CssBaseline`.
+        - **MODIFIED:** `frontend/src/components/WebSocketProvider.tsx` - Improved WebSocket error logging.
+        - **MODIFIED:** `frontend/package.json` / `package-lock.json` - Added Material UI dependencies.
+        - **MODIFIED:** `frontend/src/app/page.tsx` - Refactored the header to use Material UI components (`AppBar`, `Toolbar`, `Typography`, `IconButton`, `Menu`, `MenuItem`, `Button`).
+        - **MODIFIED:** `frontend/src/components/GlobalDashboardStats.tsx` - Refactored to use Material UI components (`Card`, `CardContent`, `Typography`, `Alert`, `Skeleton`) for improved visual consistency and loading feedback.
+    </file_system_state>
+
+    <recent_actions>
+        - Successfully implemented the full stock adjustment approval workflow (backend logic and frontend UI for Admin, Magasinier, and DAF).
+        - Successfully implemented the full stock receipt approval workflow (single and batch) with DAF approval, including backend schemas, endpoints, and frontend UI for Magasinier and DAF.
+        - Resolved several `NameError`s in the backend related to missing imports.
+        - Resolved frontend native HTML validation issues in the batch stock receipt form.
+        - User confirmed that the stock receipt workflow (single item and batch) is now fully functional.
+        - Provided a list of suggestions for further UI/UX and architectural improvements.
+        - Refactored `Login.tsx`, `MagasinierDashboard.tsx`, `DAFDashboard.tsx`, and `AdminDashboard.tsx` to extensively use Material UI components and `Snackbar` for notifications.
+        - Replaced all native `confirm()` and `prompt()` dialogs in `MagasinierDashboard.tsx`, `DAFDashboard.tsx`, and `AdminDashboard.tsx` with Material UI `Dialog` components for a consistent user experience.
+        - Implemented more sophisticated form handling and validation feedback using MUI for all forms in `AdminDashboard.tsx` (User, Category, Product, and Stock Adjustment forms).
+        - Implemented more sophisticated form handling and validation feedback using MUI for all forms in `MagasinierDashboard.tsx` (Stock Adjustment, Single Stock Receipt, and Batch Stock Receipt forms).
+        - Implemented more sophisticated form handling and validation feedback using MUI for forms in `DAFDashboard.tsx`.
+        - Replaced all `CircularProgress` indicators with `Skeleton` components for loading states in `AdminDashboard.tsx`, `MagasinierDashboard.tsx`, and `DAFDashboard.tsx`.
+        - Refactored the application header in `frontend/src/app/page.tsx` to use Material UI components for improved consistency and accessibility.
+        - Refactored `GlobalDashboardStats.tsx` to use Material UI components (`Card`, `CardContent`, `Typography`, `Alert`, `Skeleton`) for improved visual consistency and loading feedback.
+        - Reviewed and improved overall responsiveness of the main content areas of all three dashboards (`AdminDashboard.tsx`, `MagasinierDashboard.tsx`, and `DAFDashboard.tsx`) by adding a `maxWidth` and centering the main `Box` component.
+        - Fixed a build error in `MagasinierDashboard.tsx` by removing a duplicate and unreachable code block.
+        - **Fixed a build error in `MagasinierDashboard.tsx` by adding a missing closing curly brace for the `handleConfirmDelivery` function.**
+    </recent_actions>
+
+    <current_plan>
+        1. [DONE] Implement backend for Stock Receipt approval workflow (schema, endpoints).
+        2. [DONE] Implement frontend for Magasinier to initiate Single Stock Receipt.
+        3. [DONE] Implement frontend for DAF to approve/reject Single Stock Receipts.
+        4. [DONE] Implement backend for Batch Stock Receipt.
+        5. [DONE] Implement frontend for Magasinier to initiate Batch Stock Receipts.
+        6. [DONE] User confirmed stock receipt (single & batch) approval workflow is working.
+        7. [DONE] Refactor `Login.tsx`, `MagasinierDashboard.tsx`, `DAFDashboard.tsx`, and `AdminDashboard.tsx` to use Material UI components and `Snackbar` for notifications.
+        8. [DONE] Replace native `confirm()` and `prompt()` dialogs with Material UI `Dialog` components for a consistent user experience.
+        9. [DONE] Implement more sophisticated form handling and validation feedback using MUI for all forms in `AdminDashboard.tsx`.
+        10. [DONE] Implement more sophisticated form handling and validation feedback using MUI for all forms in `MagasinierDashboard.tsx`.
+        11. [DONE] Implement more sophisticated form handling and validation feedback using MUI for forms in `DAFDashboard.tsx`.
+        12. [DONE] Add more visual feedback for loading states (e.g., skeleton loaders) for all dashboard components.
+        13. [DONE] Refactor the application header in `frontend/src/app/page.tsx` to use Material UI components.
+        14. [DONE] Refactor `GlobalDashboardStats.tsx` to use Material UI components.
+        15. [DONE] Review and improve overall responsiveness and accessibility of the application (main content areas of the dashboards).
+    </current_plan>
+</state_snapshot>
