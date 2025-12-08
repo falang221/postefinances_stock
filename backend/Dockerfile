@@ -40,4 +40,4 @@ EXPOSE 8000
 # Commande pour lancer l'application en production avec Gunicorn
 # Gunicorn est un serveur WSGI de production robuste.
 # UvicornWorker permet à Gunicorn de lancer des applications ASGI comme FastAPI.
-CMD ["pdm", "run", "gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "main:app", "-b", "0.0.0.0:8000"]
+CMD ["sh", "-c", "pdm run prisma migrate deploy --schema ./database/schema.prisma && pdm run gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app -b 0.0.0.0:8000"]
