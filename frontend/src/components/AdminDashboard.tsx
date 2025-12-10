@@ -26,23 +26,33 @@ import {
   MenuItem,
   FormHelperText,
   SelectChangeEvent,
+  ToggleButton,
+  ToggleButtonGroup, // NEW IMPORT
 } from '@mui/material';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'; // NEW
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import SearchIcon from '@mui/icons-material/Search'; // NEWLY ADDED
+import SearchIcon from '@mui/icons-material/Search';
 
 import { useUserApi } from '@/api/users';
 import { useNotification } from '@/context/NotificationContext';
 import { UserFullResponse, UserRole, UserCreate, UserUpdate } from '@/types/api';
+
+// NEW: Import ProductManagement component
+import ProductManagement from './ProductManagement';
+// NEW: Import CategoryManagement component
+import CategoryManagement from './CategoryManagement';
 
 const AdminDashboard: React.FC = () => {
   const queryClient = useQueryClient();
   const { getUsers, createUser, updateUser, deleteUser } = useUserApi();
   const { showSnackbar, showConfirmation } = useNotification();
 
-  // State for the form dialog
+  // State for view management
+  const [view, setView] = useState<'users' | 'products' | 'categories'>('users'); // NEW STATE OPTION
+
+  // State for the user form dialog
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserFullResponse | null>(null);
 
@@ -55,6 +65,7 @@ const AdminDashboard: React.FC = () => {
       const [, searchTerm] = queryKey; // Extract searchTerm from queryKey
       return getUsers(searchTerm);
     },
+    enabled: view === 'users', // Only fetch users if user view is active
   });
 
   // Mutation for creating a user
@@ -95,7 +106,7 @@ const AdminDashboard: React.FC = () => {
     },
   });
 
-  // Modal and form handling
+  // Modal and form handling for users
   const handleOpenCreateModal = () => {
     setEditingUser(null);
     setIsModalOpen(true);
@@ -117,75 +128,119 @@ const AdminDashboard: React.FC = () => {
     });
   };
 
+  // NEW: Handle view change
+  const handleViewChange = (
+    event: React.MouseEvent<HTMLElement>,
+    newView: 'users' | 'products' | 'categories' | null, // NEW: 'categories' option
+  ) => {
+    if (newView !== null) {
+      setView(newView);
+    }
+  };
+
   return (
     <Box sx={{ p: 3, maxWidth: 1200, margin: '0 auto' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h2">
-          Gestion des Utilisateurs
+          Tableau de Bord Administrateur
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreateModal}>
-          Créer un utilisateur
-        </Button>
-      </Box>
-
-      <Box sx={{ mb: 2, display: 'flex', gap: 1 }}>
-        <TextField
-          label="Rechercher un utilisateur..."
-          variant="outlined"
-          size="small"
-          value={userSearchTerm}
-          onChange={(e) => setUserSearchTerm(e.target.value)}
-          sx={{ flexGrow: 1 }}
-        />
-        <Button
-          variant="contained"
-          onClick={() => queryClient.invalidateQueries({ queryKey: ['users'] })} // Trigger refetch based on userSearchTerm
-          startIcon={<SearchIcon />}
+        <ToggleButtonGroup
+          value={view}
+          exclusive
+          onChange={handleViewChange}
+          aria-label="admin view"
         >
-          Rechercher
-        </Button>
+          <ToggleButton value="users" aria-label="user management">
+            Gestion des Utilisateurs
+          </ToggleButton>
+          <ToggleButton value="products" aria-label="product management">
+            Gestion des Produits
+          </ToggleButton>
+          <ToggleButton value="categories" aria-label="category management">
+            Gestion des Catégories
+          </ToggleButton>
+        </ToggleButtonGroup>
       </Box>
 
-      {isLoading && <CircularProgress />}
-      {isError && <Alert severity="error">{(error as Error).message}</Alert>}
+      {view === 'users' && (
+        <>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h5" component="h3">
+              Utilisateurs
+            </Typography>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreateModal}>
+              Créer un utilisateur
+            </Button>
+          </Box>
 
-      {!isLoading && !isError && (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Nom</TableCell>
-                <TableCell>Nom d'utilisateur</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Rôle</TableCell>
-                <TableCell>Département</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id} hover>
-                  <TableCell>{user.name}</TableCell>
-                  <TableCell>{user.username}</TableCell>
-                  <TableCell>{user.email || 'N/A'}</TableCell>
-                  <TableCell>{user.role}</TableCell>
-                  <TableCell>{user.department || 'N/A'}</TableCell>
-                  <TableCell align="right">
-                    <IconButton onClick={() => handleOpenEditModal(user)} color="primary">
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton onClick={() => handleDelete(user.id)} color="error">
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+          <Box sx={{ mb: 2, display: 'flex', gap: 1 }}>
+            <TextField
+              label="Rechercher un utilisateur..."
+              variant="outlined"
+              size="small"
+              value={userSearchTerm}
+              onChange={(e) => setUserSearchTerm(e.target.value)}
+              sx={{ flexGrow: 1 }}
+            />
+            <Button
+              variant="contained"
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['users'] })}
+              startIcon={<SearchIcon />}
+            >
+              Rechercher
+            </Button>
+          </Box>
+
+          {isLoading && <CircularProgress />}
+          {isError && <Alert severity="error">{(error as Error).message}</Alert>}
+
+          {!isLoading && !isError && (
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Nom</TableCell>
+                    <TableCell>Nom d\'utilisateur</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell>Rôle</TableCell>
+                    <TableCell>Département</TableCell>
+                    <TableCell align="right">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {users.map((user) => (
+                    <TableRow key={user.id} hover>
+                      <TableCell>{user.name}</TableCell>
+                      <TableCell>{user.username}</TableCell>
+                      <TableCell>{user.email || 'N/A'}</TableCell>
+                      <TableCell>{user.role}</TableCell>
+                      <TableCell>{user.department || 'N/A'}</TableCell>
+                      <TableCell align="right">
+                        <IconButton onClick={() => handleOpenEditModal(user)} color="primary">
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton onClick={() => handleDelete(user.id)} color="error">
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </>
       )}
 
-      {isModalOpen && <UserFormModal open={isModalOpen} onClose={handleCloseModal} user={editingUser} createMutation={createUserMutation} updateMutation={updateUserMutation} />}
+      {view === 'products' && (
+        <ProductManagement /> // NEW: Render ProductManagement component
+      )}
+
+      {view === 'categories' && ( // NEW: Render CategoryManagement component
+        <CategoryManagement />
+      )}
+
+      {isModalOpen && <UserFormModal open={isModalOpen} onClose={handleCloseModal} user={editingUser} createMutation={createUserMutation} updateUserMutation={updateUserMutation} />}
     </Box>
   );
 };
@@ -196,10 +251,10 @@ interface UserFormModalProps {
   onClose: () => void;
   user: UserFullResponse | null;
   createMutation: any; // Simplified for brevity
-  updateMutation: any;
+  updateUserMutation: any; // Corrected prop name
 }
 
-const UserFormModal: React.FC<UserFormModalProps> = ({ open, onClose, user, createMutation, updateMutation }) => {
+const UserFormModal: React.FC<UserFormModalProps> = ({ open, onClose, user, createMutation, updateUserMutation }) => {
   const [formData, setFormData] = useState<Partial<UserCreate & UserUpdate>>({
     username: user?.username ?? '',
     name: user?.name ?? '',
@@ -221,7 +276,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ open, onClose, user, crea
       if (!updateData.password) {
         delete updateData.password;
       }
-      updateMutation.mutate({ userId: user.id, data: updateData });
+      updateUserMutation.mutate({ userId: user.id, data: updateData });
     } else { // Creating
       createMutation.mutate(formData as UserCreate);
     }
@@ -233,7 +288,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ open, onClose, user, crea
       <Box component="form" onSubmit={handleSubmit}>
         <DialogContent>
           <TextField name="name" label="Nom" value={formData.name} onChange={handleChange} required fullWidth margin="normal" />
-          <TextField name="username" label="Nom d'utilisateur" value={formData.username} onChange={handleChange} required fullWidth margin="normal" />
+          <TextField name="username" label="Nom d\'utilisateur" value={formData.username} onChange={handleChange} required fullWidth margin="normal" />
           <TextField name="email" type="email" label="Email (Optionnel)" value={formData.email} onChange={handleChange} fullWidth margin="normal" />
           <TextField name="password" type="password" label={user ? "Nouveau mot de passe (laisser vide pour ne pas changer)" : "Mot de passe"} onChange={handleChange} required={!user} fullWidth margin="normal" />
           <FormControl fullWidth margin="normal" required>
@@ -246,8 +301,8 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ open, onClose, user, crea
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>Annuler</Button>
-          <Button type="submit" variant="contained" disabled={createMutation.isPending || updateMutation.isPending}>
-            {createMutation.isPending || updateMutation.isPending ? <CircularProgress size={24} /> : (user ? 'Mettre à jour' : 'Créer')}
+          <Button type="submit" variant="contained" disabled={createMutation.isPending || updateUserMutation.isPending}>
+            {createMutation.isPending || updateUserMutation.isPending ? <CircularProgress size={24} /> : (user ? 'Mettre à jour' : 'Créer')}
           </Button>
         </DialogActions>
       </Box>

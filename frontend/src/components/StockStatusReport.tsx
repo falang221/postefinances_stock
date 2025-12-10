@@ -41,7 +41,7 @@ const StockStatusReport: React.FC = () => {
   // Fetching categories for the filter dropdown
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
-    queryFn: getCategories,
+    queryFn: () => getCategories(),
   });
 
   // Fetching the report data using useQuery

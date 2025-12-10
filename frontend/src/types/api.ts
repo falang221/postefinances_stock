@@ -49,6 +49,27 @@ export interface ProductResponse {
     reference: string;
     quantity: number;
     unit: string;
+    maxStock: number; // Added maxStock to response
+    categoryId: string; // Added categoryId to response
+    category: CategoryResponse; // Added category to response
+}
+
+export interface ProductCreate {
+    name: string;
+    reference: string;
+    initialQuantity: number;
+    maxStock: number;
+    categoryId: string;
+    unit?: string; // Assuming unit might be optional or have a default
+}
+
+export interface ProductUpdate {
+    name?: string;
+    reference?: string;
+    quantity?: number; // Quantity can be updated directly (e.g., via adjustments)
+    maxStock?: number;
+    categoryId?: string;
+    unit?: string;
 }
 
 export interface CategoryResponse {
@@ -64,6 +85,7 @@ export interface ProductFullResponse {
     category: CategoryResponse;
     quantity: number;
     minStock: number;
+    maxStock: number; // Added maxStock
     unit: string;
     location?: string | null;
 }

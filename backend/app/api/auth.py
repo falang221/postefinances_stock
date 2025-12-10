@@ -111,6 +111,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> CurrentUser:
 
 def role_required(required_roles: Union[UserRole, List[UserRole]]):
     def role_checker(current_user: CurrentUser = Depends(get_current_user)):
+        # ADMIN role implicitly has all permissions
+        if current_user.role == UserRole.ADMIN:
+            return current_user
+
         if isinstance(required_roles, list):
             if current_user.role not in required_roles:
                 raise HTTPException(

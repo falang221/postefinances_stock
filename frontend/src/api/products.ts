@@ -1,5 +1,5 @@
 import { useApiClient } from './client'; // Import the new hook
-import { ProductResponse, ProductFullResponse } from '../types/api';
+import { ProductResponse, ProductFullResponse, ProductCreate, ProductUpdate } from '../types/api'; // Import ProductCreate and ProductUpdate
 
 export function useProductApi() {
   const apiClient = useApiClient();
@@ -10,9 +10,22 @@ export function useProductApi() {
     return apiClient.get<ProductFullResponse[]>(`/products?${params.toString()}`); // Changed generic type
   };
 
-  // Add other product-related API functions here if needed, e.g., createProduct, getProductById, etc.
+  const createProduct = async (data: ProductCreate): Promise<ProductResponse> => {
+    return apiClient.post<ProductResponse>('/products/', data);
+  };
+
+  const updateProduct = async (productId: string, data: ProductUpdate): Promise<ProductResponse> => {
+    return apiClient.put<ProductResponse>(`/products/${productId}`, data);
+  };
+
+  const deleteProduct = async (productId: string): Promise<void> => {
+    await apiClient.delete<void>(`/products/${productId}`);
+  };
 
   return {
     getProducts,
+    createProduct,
+    updateProduct,
+    deleteProduct,
   };
 }
