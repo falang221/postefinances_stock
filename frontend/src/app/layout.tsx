@@ -8,6 +8,7 @@ import Navbar from "@/components/Navbar";
 import { AuthProvider } from "@/context/AuthContext";
 import Providers from "@/components/Providers"; // Import the new Providers component
 import { NotificationProvider } from "@/context/NotificationContext";
+import { NotificationCountProvider } from "@/context/NotificationCountContext"; // NEW import
 import { usePathname } from 'next/navigation'; // New import
 import Footer from "@/components/Footer"; // Import the Footer component
 import { Box } from "@mui/material";
@@ -23,19 +24,27 @@ export default function RootLayout({
 
   return (
     <html lang="fr">
+      <head>
+        {/* <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
+        /> */}
+      </head>
       <body>
         <ThemeRegistry>
           <AuthProvider>
             <NotificationProvider>
               <Providers> {/* Wrap with the new Providers component */}
                 <WebSocketProvider>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                    {pathname !== '/' && <Navbar />} {/* Conditional rendering */}
-                    <Box component="main" sx={{ flexGrow: 1 }}>
-                      {children}
+                  <NotificationCountProvider> {/* NEW: Wrap content with NotificationCountProvider */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                      {pathname !== '/' && <Navbar />} {/* Conditional rendering */}
+                      <Box component="main" sx={{ flexGrow: 1 }}>
+                        {children}
+                      </Box>
+                      {pathname !== '/' && <Footer />} {/* Conditional rendering */}
                     </Box>
-                    {pathname !== '/' && <Footer />} {/* Conditional rendering */}
-                  </Box>
+                  </NotificationCountProvider>
                 </WebSocketProvider>
               </Providers>
             </NotificationProvider>

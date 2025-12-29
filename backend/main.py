@@ -1,4 +1,6 @@
 import logging
+logger = logging.getLogger(__name__) # Moved logger initialization here
+
 from fastapi import FastAPI
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -22,6 +24,7 @@ from app.api.routes.reports import router as reports_router
 from app.api.routes.request import router as request_router
 from app.api.routes.user import router as user_router
 from app.api.routes.websockets import router as websockets_router
+from app.api.routes.stock_adjustment import router as stock_adjustment_router
 
 # --- Sentry Integration ---
 # Sentry is initialized if a DSN is provided in the settings.
@@ -101,10 +104,11 @@ app.include_router(inventory_audit_router, prefix="/api")
 app.include_router(notifications_router, prefix="/api")
 app.include_router(purchase_order_router, prefix="/api")
 app.include_router(reports_router, prefix="/api/reports", tags=["Reports"])
-app.include_router(websockets_router, prefix="/api")
-
+app.include_router(stock_adjustment_router, prefix="/api")
 
 @app.get("/", tags=["Root"])
 async def read_root():
     return {"message": "Welcome to Postefinances Stock Management API!"}
+
+
 

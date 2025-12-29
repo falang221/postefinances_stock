@@ -38,6 +38,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import StockTurnoverReport from '@/components/StockTurnoverReport';
 import StockRequestReport from '@/components/StockRequestReport';
 import StockValueReport from '@/components/StockValueReport';
+import StockStatusReport from '@/components/StockStatusReport';
 import PurchaseOrderList from '@/components/PurchaseOrderList';
 import PurchaseOrderDetail from '@/components/PurchaseOrderDetail';
 import Link from 'next/link';
@@ -104,6 +105,7 @@ function DAFDashboard() {
   const [showStockRequestReport, setShowStockRequestReport] = useState(false);
   const [showStockTurnoverReport, setShowStockTurnoverReport] = useState(false);
   const [showStockValueReport, setShowStockValueReport] = useState(false);
+  const [showStockStatusReport, setShowStockStatusReport] = useState(false);
   const [showPurchaseOrders, setShowPurchaseOrders] = useState(false);
   const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string | null>(null);
 
@@ -335,7 +337,13 @@ function DAFDashboard() {
         <Button
           variant="outlined"
           startIcon={<AssessmentIcon />}
-          onClick={() => setShowStockRequestReport(!showStockRequestReport)}
+          onClick={() => {
+            setShowStockRequestReport(!showStockRequestReport);
+            setShowPurchaseOrders(false);
+            setShowStockTurnoverReport(false);
+            setShowStockValueReport(false);
+            setShowStockStatusReport(false);
+          }}
           sx={{ mr: 2 }}
         >
           {showStockRequestReport ? "Masquer le Rapport des Demandes" : "Afficher le Rapport des Demandes"}
@@ -347,6 +355,8 @@ function DAFDashboard() {
             setShowStockRequestReport(false);
             setShowPurchaseOrders(false);
             setShowStockTurnoverReport(!showStockTurnoverReport); // Toggle this report
+            setShowStockValueReport(false);
+            setShowStockStatusReport(false);
           }}
           sx={{ mr: 2 }}
         >
@@ -360,10 +370,25 @@ function DAFDashboard() {
             setShowPurchaseOrders(false);
             setShowStockTurnoverReport(false);
             setShowStockValueReport(!showStockValueReport);
+            setShowStockStatusReport(false);
           }}
           sx={{ mr: 2 }}
         >
           {showStockValueReport ? "Masquer le Rapport Valeur du Stock" : "Afficher le Rapport Valeur du Stock"}
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<AssessmentIcon />}
+          onClick={() => {
+            setShowStockRequestReport(false);
+            setShowPurchaseOrders(false);
+            setShowStockTurnoverReport(false);
+            setShowStockValueReport(false);
+            setShowStockStatusReport(!showStockStatusReport);
+          }}
+          sx={{ mr: 2 }}
+        >
+          {showStockStatusReport ? "Masquer le Rapport État des Stocks" : "Afficher le Rapport État des Stocks"}
         </Button>
         <Link href="/dashboard/reports/stock-valuation" passHref>
           <Button
@@ -382,6 +407,7 @@ function DAFDashboard() {
             setShowStockRequestReport(false);
             setShowStockTurnoverReport(false); // Hide other reports
             setShowStockValueReport(false);
+            setShowStockStatusReport(false);
             setSelectedPurchaseOrderId(null); // Reset selected PO when toggling list
           }}
         >
@@ -390,6 +416,7 @@ function DAFDashboard() {
         {showStockRequestReport && <StockRequestReport />}
         {showStockTurnoverReport && <StockTurnoverReport />}
         {showStockValueReport && <StockValueReport />}
+        {showStockStatusReport && <StockStatusReport />}
         {showPurchaseOrders && !selectedPurchaseOrderId && (
           <PurchaseOrderList
             onViewDetails={setSelectedPurchaseOrderId}
@@ -408,7 +435,7 @@ function DAFDashboard() {
       </Paper>
 
       {/* --- PENDING STOCK ADJUSTMENTS --- */}
-      {!showPurchaseOrders && !showStockRequestReport && (
+      {!showPurchaseOrders && !showStockRequestReport && !showStockTurnoverReport && !showStockValueReport && !showStockStatusReport && (
         <>
           <Paper elevation={3} sx={{ mt: 4, p: 2 }}>
             <Typography variant="h5" component="h3" gutterBottom>

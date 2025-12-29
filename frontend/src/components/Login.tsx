@@ -22,8 +22,8 @@ interface JwtPayload {
 // const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api'; // No longer needed here
 
 function Login() {
-  const [username, setUsername] = useState<string>('chef.service');
-  const [password, setPassword] = useState<string>('password');
+  const [username, setUsername] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string | null>(null); // Keep local error for now, apiClient handles snackbar
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const router = useRouter();

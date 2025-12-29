@@ -1,6 +1,6 @@
 import os
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 
 class Settings(BaseSettings):
     # Core settings
@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     
     # Sentry DSN for error tracking
-    SENTRY_DSN: str # This should be set in .env
+    SENTRY_DSN: Optional[str] = None
 
 
     # CORS settings
@@ -18,9 +18,9 @@ class Settings(BaseSettings):
     ]
 
     class Config:
-        env_file = ".env"
+        env_file = ".env.prod"
         env_file_encoding = 'utf-8'
-        extra = 'ignore' # Allow extra environment variables to prevent Pydantic validation errors
+        extra = 'ignore' 
 
 # Create a single, reusable instance of the settings
 settings = Settings()

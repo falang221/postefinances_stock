@@ -105,6 +105,7 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             break;
           case 'daf_receipt_decision':
           case 'daf_adjustment_decision':
+          case 'request_decision': // For stock request approval/rejection
             toast.success(messageData.message, {
               position: "top-right",
               autoClose: 8000,

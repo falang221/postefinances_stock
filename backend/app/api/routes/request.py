@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 
 from app.api.auth import CurrentUser, UserRole, role_required
 from app.api.schemas import (
@@ -15,6 +15,7 @@ from app.api.schemas import (
 )
 from app.database import get_db
 from app.websockets import manager  # Import the WebSocket manager
+from app.services.pdf_service import PDFService # NEW
 from database.generated.prisma import Prisma  # Corrected import path
 from database.generated.prisma.enums import ApprovalDecision, DisputeReason, RequestItemDisputeStatus, TransactionSource # New import for item-level dispute
 from app.utils.number_generator import generate_next_number # New import
@@ -792,4 +793,45 @@ async def get_delivery_note_data(
         delivererName=request.receivedBy.name,
         requesterObservations=request.requesterObservations, # New field
         items=delivery_items,
+    )
+
+
+@router.get("/{request_id}/pdf", dependencies=[Depends(role_required([UserRole.MAGASINIER, UserRole.CHEF_SERVICE, UserRole.DAF, UserRole.ADMIN, UserRole.SUPER_OBSERVATEUR]))])
+async def download_delivery_note_pdf(
+    request_id: str,
+    db: Prisma = Depends(get_db),
+    pdf_service: PDFService = Depends()
+):
+    """
+    Generate and download a PDF delivery note for a request.
+    """
+    request = await db.request.find_unique(
+        where={"id": request_id},
+        include={
+            "requester": True,
+            "receivedBy": True,
+            "items": {"include": {"product": True}},
+        },
+    )
+
+    if not request:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+
+    if request.status not in ["LIVREE_PAR_MAGASINIER", "RECEPTION_CONFIRMEE", "LITIGE_RECEPTION"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Le bon de livraison ne peut être généré que pour les demandes livrées. Statut actuel: {request.status}",
+        )
+
+    request_data = request.model_dump()
+    pdf_bytes = pdf_service.generate_delivery_note_pdf(request_data)
+    
+    filename = f"Bon_Livraison_{request.requestNumber}.pdf"
+    
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
     )

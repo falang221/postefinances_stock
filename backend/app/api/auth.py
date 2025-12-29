@@ -9,8 +9,6 @@ from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
-from pydantic import BaseModel
-
 # Password Hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -54,6 +52,7 @@ class UserRole(str, Enum):
     DAF = "DAF"
     ADMIN = "ADMIN"
     SUPER_OBSERVATEUR = "SUPER_OBSERVATEUR"
+    USER_MANAGER = "USER_MANAGER" # New role for user management
 
 
 class CurrentUser(BaseModel):

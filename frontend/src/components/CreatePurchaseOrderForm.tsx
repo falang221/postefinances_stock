@@ -141,7 +141,7 @@ const CreatePurchaseOrderForm: React.FC<CreatePurchaseOrderFormProps> = ({ onSuc
                 label="Quantité"
                 type="number"
                 value={item.quantity}
-                onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value))}
+                onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
                 inputProps={{ min: 1 }}
                 required
                 sx={{ width: '120px' }}
@@ -151,7 +151,7 @@ const CreatePurchaseOrderForm: React.FC<CreatePurchaseOrderFormProps> = ({ onSuc
                 label="Prix Unitaire"
                 type="number"
                 value={item.unitPrice}
-                onChange={(e) => handleItemChange(index, 'unitPrice', parseFloat(e.target.value))}
+                onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
                 inputProps={{ min: 0, step: "0.01" }}
                 required
                 sx={{ width: '120px' }}

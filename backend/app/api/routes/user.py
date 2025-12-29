@@ -20,7 +20,7 @@ router = APIRouter(prefix="/users", tags=["Users"])
 async def create_user(
     user_data: UserCreate,
     db: Prisma = Depends(get_db),
-    current_user: CurrentUser = Depends(role_required(UserRole.ADMIN)),
+    current_user: CurrentUser = Depends(role_required([UserRole.ADMIN, UserRole.USER_MANAGER])),
 ):
     """
     Creates a new user (only accessible by ADMIN).
@@ -50,7 +50,7 @@ async def create_user(
 @router.get("/", response_model=List[UserFullResponse])
 async def get_all_users(
     db: Prisma = Depends(get_db),
-    current_user: CurrentUser = Depends(role_required([UserRole.ADMIN, UserRole.SUPER_OBSERVATEUR, UserRole.MAGASINIER])),
+    current_user: CurrentUser = Depends(role_required([UserRole.ADMIN, UserRole.SUPER_OBSERVATEUR, UserRole.MAGASINIER, UserRole.USER_MANAGER])),
     search: Optional[str] = None,
     roles: Optional[str] = None, # <-- Added roles parameter
 ):
@@ -99,11 +99,28 @@ async def get_request_creators(
     return [UserFullResponse.model_validate(user) for user in users]
 
 
+@router.get("/me", response_model=UserFullResponse)
+async def get_current_user_profile(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: Prisma = Depends(get_db),
+):
+    """
+    Retrieves the current authenticated user's profile.
+    Accessible by any authenticated user.
+    """
+    user = await db.user.find_unique(where={"id": current_user.id})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+    return UserFullResponse.model_validate(user)
+
+
 @router.get("/{user_id}", response_model=UserFullResponse)
 async def get_user_by_id(
     user_id: str,
     db: Prisma = Depends(get_db),
-    current_user: CurrentUser = Depends(role_required(UserRole.ADMIN)),
+    current_user: CurrentUser = Depends(role_required([UserRole.ADMIN, UserRole.USER_MANAGER])),
 ):
     """
     Retrieves a single user by their ID (only accessible by ADMIN).
@@ -121,7 +138,7 @@ async def update_user(
     user_id: str,
     user_data: UserUpdate,
     db: Prisma = Depends(get_db),
-    current_user: CurrentUser = Depends(role_required(UserRole.ADMIN)),
+    current_user: CurrentUser = Depends(role_required([UserRole.ADMIN, UserRole.USER_MANAGER])),
 ):
     """
     Updates a user's details (only accessible by ADMIN).
@@ -153,7 +170,7 @@ async def update_user(
 async def delete_user(
     user_id: str,
     db: Prisma = Depends(get_db),
-    current_user: CurrentUser = Depends(role_required(UserRole.ADMIN)),
+    current_user: CurrentUser = Depends(role_required([UserRole.ADMIN, UserRole.USER_MANAGER])),
 ):
     """
     Deletes a user by their ID (only accessible by ADMIN).
@@ -172,20 +189,14 @@ async def delete_user(
         )
 
 
-@router.get("/me", response_model=UserFullResponse)
-async def get_current_user_profile(
-    current_user: CurrentUser = Depends(get_current_user), db: Prisma = Depends(get_db)
-):
+@router.get("/test-auth", response_model=CurrentUser)
+async def test_authentication(current_user: CurrentUser = Depends(get_current_user)):
     """
-    Retrieves the current authenticated user's profile.
-    Accessible by any authenticated user.
+    A simple test endpoint to check if authentication is working.
+    Returns the current_user object if authenticated.
     """
-    user = await db.user.find_unique(where={"id": current_user.id})
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
-    return UserFullResponse.model_validate(user)
+    print(f"DEBUG: test_authentication received current_user: {current_user}")
+    return current_user
 
 
 @router.put("/me", response_model=UserFullResponse)
@@ -248,9 +259,9 @@ async def change_current_user_password(
     # Verify current password (assuming verify_password function exists)
     # For now, we'll skip actual password verification for simplicity,
     # but in a real app, you'd verify the current_password against the hashed password in the DB.
-    # from app.api.auth import verify_password
-    # if not verify_password(password_data.current_password, user.password):
-    #     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect current password")
+    from app.api.auth import verify_password
+    if not verify_password(password_data.current_password, user.password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect current password")
 
     hashed_new_password = get_password_hash(password_data.new_password)
 

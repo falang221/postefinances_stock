@@ -38,6 +38,7 @@ export function useApiClient() {
     }
 
     const token = authContext.token;
+    console.log("DEBUG FE: Current token from authContext:", token ? token.substring(0, 30) + "..." : "No token"); // Log partial token
     if (token) {
       try {
         const decodedToken: DecodedToken = jwtDecode(token);
@@ -54,6 +55,9 @@ export function useApiClient() {
       }
 
       headers['Authorization'] = `Bearer ${token}`;
+      console.log("DEBUG FE: Authorization header set to:", headers['Authorization'].substring(0, 40) + "..."); // Log partial header
+    } else {
+      console.log("DEBUG FE: No token, Authorization header not set.");
     }
 
     const config: RequestInit = {

@@ -19,9 +19,11 @@ import {
   CardContent,
 } from "@mui/material";
 import PrintIcon from '@mui/icons-material/Print';
+import DownloadIcon from '@mui/icons-material/Download';
 import { useQuery } from "@tanstack/react-query";
 import { useReportApi } from "@/api/reports";
 import { useAuth } from "@/context/AuthContext";
+import { exportToExcel } from '@/utils/export'; // Importer la fonction d'export
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('fr-FR', {
@@ -41,6 +43,34 @@ const StockValueReport: React.FC = () => {
     queryFn: getStockValueReport,
     enabled: !!token, // Only fetch if the user is authenticated
   });
+
+  const handleExportExcel = () => {
+    if (!reportData || !reportData.items) return;
+
+    // Formater les données pour l'export Excel avec des en-têtes en français
+    const dataForExport = reportData.items.map(item => ({
+      'Produit': item.productName,
+      'Référence': item.productReference,
+      'Quantité': item.quantity,
+      'Coût Unitaire (CFA)': item.cost,
+      'Valeur Totale (CFA)': item.totalValue,
+    }));
+
+    // Ajouter une ligne pour le total
+    dataForExport.push({
+      'Produit': 'TOTAL',
+      'Référence': '',
+      'Quantité': 0,
+      'Coût Unitaire (CFA)': 0,
+      'Valeur Totale (CFA)': reportData.totalStockValue,
+    });
+
+    exportToExcel({
+      data: dataForExport,
+      fileName: `Rapport_Valeur_Stock_${new Date().toLocaleDateString('fr-FR')}`,
+      sheetName: 'Rapport Valeur Stock',
+    });
+  };
 
   const handlePrintReport = () => {
     if (!reportData) return;
@@ -129,14 +159,25 @@ const StockValueReport: React.FC = () => {
         <Typography variant="h4" component="h1" gutterBottom>
           Rapport sur la Valeur du Stock
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<PrintIcon />}
-          onClick={handlePrintReport}
-          disabled={!reportData}
-        >
-          Imprimer le Rapport
-        </Button>
+        <Box>
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={handleExportExcel}
+            disabled={!reportData || reportData.items.length === 0}
+            sx={{ mr: 1 }}
+          >
+            Exporter en Excel
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<PrintIcon />}
+            onClick={handlePrintReport}
+            disabled={!reportData}
+          >
+            Imprimer le Rapport
+          </Button>
+        </Box>
       </Box>
       
       <Card sx={{ mb: 3 }}>

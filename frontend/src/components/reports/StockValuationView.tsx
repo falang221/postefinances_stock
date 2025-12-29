@@ -61,26 +61,28 @@ export default function StockValuationView({ data }: StockValuationViewProps) {
                     <Typography variant="h6" gutterBottom>
                         Répartition par Catégorie
                     </Typography>
-                    <ResponsiveContainer width="100%" height="90%">
-                        <PieChart>
-                            <Pie
-                                data={data}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-                                outerRadius={120}
-                                fill="#8884d8"
-                                dataKey="totalValue"
-                                nameKey="categoryName"
-                            >
-                                {data.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip content={<CustomTooltip />} />
-                            <Legend />
-                        </PieChart>
-                    </ResponsiveContainer>
+                    <div style={{ width: '100%', height: 320 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={data}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    outerRadius={120}
+                                    fill="#8884d8"
+                                    dataKey="totalValue"
+                                    nameKey="categoryName"
+                                >
+                                    {data.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip content={<CustomTooltip />} />
+                                <Legend />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
                 </Paper>
             </Grid>
 

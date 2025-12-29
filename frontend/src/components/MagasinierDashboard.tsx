@@ -66,6 +66,9 @@ import {
 
 import {RequestItemDisputeStatus} from '@/types/api'; // Import RequestItemDisputeStatus enum
 
+// Force cache bust for Docker build - adding a comment
+
+
 const itemDisputeStatusTranslations: { [key in RequestItemDisputeStatus]: string } = {
   [RequestItemDisputeStatus.NO_DISPUTE]: 'Pas de litige',
   [RequestItemDisputeStatus.REPORTED]: 'Litige signalé',
@@ -350,14 +353,24 @@ function MagasinierDashboard() {
                               Livrer la Demande
                             </Button>
                           )}
-                          {request.status === "LIVREE_PAR_MAGASINIER" && (
-                            <Button
-                              variant="outlined"
-                              onClick={() => handlePrintDeliveryNote(request)}
-                              startIcon={<ReceiptLongIcon />}
-                            >
-                              Imprimer Bon de Livraison
-                            </Button>
+                          {(request.status === "LIVREE_PAR_MAGASINIER" || request.status === "RECEPTION_CONFIRMEE") && (
+                            <>
+                              <Button
+                                variant="contained"
+                                color="info"
+                                onClick={() => window.open(`${process.env.NEXT_PUBLIC_API_URL_HOST || 'http://localhost:8000/api'}/requests/${request.id}/pdf`, '_blank')}
+                                startIcon={<ReceiptLongIcon />}
+                              >
+                                Télécharger Bon de Livraison
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                onClick={() => handlePrintDeliveryNote(request)}
+                                startIcon={<ReceiptLongIcon />}
+                              >
+                                Imprimer Bon de Livraison
+                              </Button>
+                            </>
                           )}
 
                           {request.status === 'LITIGE_RECEPTION' && (

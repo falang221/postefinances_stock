@@ -4,6 +4,7 @@ import React from "react";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import * as Sentry from "@sentry/react";
+// import { NotificationCountProvider } from '@/context/NotificationCountContext'; // NEW - REMOVED
 
 // Initialize Sentry
 // This should be placed at the very top of your application's entry point.
@@ -45,7 +46,9 @@ function Providers({ children }: React.PropsWithChildren) {
   return (
     <Sentry.ErrorBoundary fallback={<p>Une erreur est survenue</p>}>
       <QueryClientProvider client={client}>
-        {children}
+        
+          {children}
+        
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
     </Sentry.ErrorBoundary>

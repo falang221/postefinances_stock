@@ -56,14 +56,15 @@ async def get_stock_requests_report_endpoint(
     start_date: Optional[datetime] = Query(None, description="Start date for the report"),
     end_date: Optional[datetime] = Query(None, description="End date for the report"),
     requester_id: Optional[str] = Query(None, description="ID of the requester"),
+    status: Optional[str] = Query(None, description="Filter by request status"),
     service: ReportService = Depends(),
 ):
     """
-    Retrieves a report of stock requests within a specified date range and/or for a specific requester.
+    Retrieves a report of stock requests within a specified date range and/or for a specific requester and/or status.
     
     - **DAF, ADMIN, MAGASINIER, SUPER_OBSERVATEUR only**
     """
-    return await service.get_stock_requests_report(start_date, end_date, requester_id)
+    return await service.get_stock_requests_report(start_date, end_date, requester_id, status)
 
 @router.get(
     "/stock-history",

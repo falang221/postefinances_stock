@@ -80,6 +80,13 @@ const StockStatusReport: React.FC = () => {
     }
   };
 
+  const statusTranslations: { [key in StockStatusEnum]: string } = {
+    [StockStatusEnum.AVAILABLE]: "Disponible",
+    [StockStatusEnum.CRITICAL]: "Stock Faible",
+    [StockStatusEnum.OUT_OF_STOCK]: "Rupture de Stock",
+    [StockStatusEnum.OVERSTOCK]: "Surstock", // Added translation for OVERSTOCK
+  };
+
   if (isLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -108,7 +115,7 @@ const StockStatusReport: React.FC = () => {
           >
             <MenuItem value=""><em>Tous</em></MenuItem>
             {Object.values(StockStatusEnum).map((status) => (
-              <MenuItem key={status} value={status}>{status}</MenuItem>
+              <MenuItem key={status} value={status}>{statusTranslations[status]}</MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -158,7 +165,7 @@ const StockStatusReport: React.FC = () => {
                 <TableCell>{product.unit}</TableCell>
                 <TableCell>{product.location || "N/A"}</TableCell>
                 <TableCell>
-                  <Chip label={product.status} color={getStatusChipColor(product.status)} size="small" />
+                  <Chip label={statusTranslations[product.status]} color={getStatusChipColor(product.status)} size="small" />
                 </TableCell>
               </TableRow>
             ))}

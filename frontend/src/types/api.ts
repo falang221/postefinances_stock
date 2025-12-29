@@ -6,6 +6,7 @@ export enum UserRole {
     CHEF_SERVICE = "CHEF_SERVICE",
     DAF = "DAF",
     SUPER_OBSERVATEUR = "SUPER_OBSERVATEUR",
+    USER_MANAGER = "USER_MANAGER",
 }
 
 export interface UserFullResponse {
@@ -57,19 +58,29 @@ export interface ProductResponse {
 export interface ProductCreate {
     name: string;
     reference: string;
-    initialQuantity: number;
-    maxStock: number;
+    quantity: number; // Changed from initialQuantity
+    minStock: number; // Changed from maxStock
+    cost: number; // Added
+    unit: string;
+    location?: string | null; // Added
     categoryId: string;
-    unit?: string; // Assuming unit might be optional or have a default
 }
 
 export interface ProductUpdate {
     name?: string;
     reference?: string;
-    quantity?: number; // Quantity can be updated directly (e.g., via adjustments)
-    maxStock?: number;
     categoryId?: string;
+    quantity?: number; // Quantity can be updated directly (e.g., via adjustments)
+    minStock?: number; // Changed from maxStock
+    cost?: number; // Added
     unit?: string;
+    location?: string | null; // Added
+}
+
+export interface StockAdjustmentDirectCreate {
+    productId: string;
+    newQuantity: number;
+    reason: string;
 }
 
 export interface CategoryResponse {
@@ -85,6 +96,7 @@ export interface ProductFullResponse {
     category: CategoryResponse;
     quantity: number;
     minStock: number;
+    cost: number; // Added missing cost property
     maxStock: number; // Added maxStock
     unit: string;
     location?: string | null;
@@ -357,9 +369,10 @@ export enum PurchaseOrderStatus {
     DRAFT = "DRAFT",
     PENDING_APPROVAL = "PENDING_APPROVAL",
     APPROVED = "APPROVED",
-    REJECTED = "REJECTED",
+    A_REVOIR = "A_REVOIR",
     ORDERED = "ORDERED",
-    RECEIVED = "RECEIVED",
+    CLOTUREE = "CLOTUREE",
+    ANNULEE = "ANNULEE",
 }
 
 export interface PurchaseOrderItemCreate {

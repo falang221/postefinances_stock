@@ -1,8 +1,13 @@
-
 import asyncio
 from database.generated.prisma.enums import UserRole
 from app.api.auth import get_password_hash
 from database.generated.prisma import Prisma
+import random
+import string
+import pandas as pd # Import pandas
+
+# --- STOCK DATA FROM USER'S EXCEL FILE ---
+EXCEL_FILE_PATH = "/app/stock.xlsx" # Absolute path within the container
 
 async def get_or_create_category(prisma: Prisma, name: str):
     """Tries to find a category by name, creates it if not found."""
@@ -19,20 +24,31 @@ async def seed_database():
     try:
         # Clear existing data for a fresh start
         print("Clearing existing data...")
-        # The order is important due to foreign key constraints
+        print("Deleting request items...")
         await prisma.requestitem.delete_many()
+        print("Deleting approvals...")
         await prisma.approval.delete_many()
+        print("Deleting requests...")
         await prisma.request.delete_many()
+        print("Deleting transactions...")
         await prisma.transaction.delete_many()
         await prisma.purchaseorderitem.delete_many()
         await prisma.purchaseorder.delete_many()
+        print("Deleting inventory audit items...")
         await prisma.inventoryaudititem.delete_many()
+        print("Deleting inventory audits...")
         await prisma.inventoryaudit.delete_many()
+        print("Deleting stock adjustments...")
         await prisma.stockadjustment.delete_many()
+        print("Deleting stock receipts...")
         await prisma.stockreceipt.delete_many()
+        print("Deleting products...")
         await prisma.product.delete_many()
+        print("Deleting categories...")
         await prisma.category.delete_many()
+        print("Deleting users...")
         await prisma.user.delete_many()
+        print("Deleting counters...")
         await prisma.counter.delete_many()
         print("Database cleared.")
 
@@ -45,17 +61,16 @@ async def seed_database():
             {"username": "admin", "email": "admin@poste", "name": "Administrateur Système", "password": get_password_hash("password"), "role": UserRole.ADMIN},
         ]
         for user_data in users_data:
-            # Use upsert to avoid errors on re-running the seed
             await prisma.user.upsert(
                 where={"username": user_data["username"]},
                 data={
                     "create": user_data,
                     "update": {
-                        "email": user_data["email"], # Update email as well if username is the unique identifier
+                        "email": user_data["email"],
                         "name": user_data["name"],
                         "password": user_data["password"],
                         "role": user_data["role"],
-                        "department": user_data.get("department"), # Handle optional department
+                        "department": user_data.get("department"),
                     },
                 },
             )
@@ -68,74 +83,57 @@ async def seed_database():
         category_mobilier = await get_or_create_category(prisma, "Mobilier de Bureau")
         print("Categories ensured.")
 
-        products_to_add = [
-            {"fournisseur": "SMK Telecom", "designation": "HP Envy X360 (Intel i7 150u, 16GB, 1TB)", "quantite": 10, "prix_unitaire": 850000},
-            {"fournisseur": "MAG SUARL", "designation": "SCANNER TYPE 1 (HP 2600F1)", "quantite": 3, "prix_unitaire": 330750},
-            {"fournisseur": "MAG SUARL", "designation": "SCANNER TYPE 2 (HP PRO N4600FNW1)", "quantite": 3, "prix_unitaire": 641000},
-            {"fournisseur": "Office Déco", "designation": "Fauteuil Demi Ministre", "quantite": 3, "prix_unitaire": 90000},
-            {"fournisseur": "Office Déco", "designation": "Fauteuil Ministre", "quantite": 3, "prix_unitaire": 75000},
-            {"fournisseur": "Office Déco", "designation": "Frigo Bar", "quantite": 3, "prix_unitaire": 65000},
-            {"fournisseur": "OFFICE Consommables", "designation": "Cartouche Canon 725", "quantite": 20, "prix_unitaire": 6000},
-            {"fournisseur": "OFFICE Consommables", "designation": "Cartouche 207A Noir", "quantite": 2, "prix_unitaire": 25000},
-            {"fournisseur": "OFFICE Consommables", "designation": "Cartouche 207A Bleu", "quantite": 1, "prix_unitaire": 30000},
-            {"fournisseur": "OFFICE Consommables", "designation": "Cartouche 207A Jaune", "quantite": 1, "prix_unitaire": 30000},
-            {"fournisseur": "OFFICE Consommables", "designation": "Cartouche 207A Rouge", "quantite": 1, "prix_unitaire": 30000},
-            {"fournisseur": "OFFICE Consommables", "designation": "Cartouche 17A", "quantite": 75, "prix_unitaire": 8600},
-            {"fournisseur": "OFFICE Consommables", "designation": "Cartouche 953 Noir", "quantite": 15, "prix_unitaire": 22000},
-            {"fournisseur": "OFFICE Consommables", "designation": "Cartouche 953 Bleu", "quantite": 10, "prix_unitaire": 20000},
-            {"fournisseur": "OFFICE Consommables", "designation": "Cartouche 953 Jaune", "quantite": 10, "prix_unitaire": 20000},
-            {"fournisseur": "OFFICE Consommables", "designation": "Cartouche 953 Rouge", "quantite": 10, "prix_unitaire": 20000},
-            {"fournisseur": "OFFICE Consommables", "designation": "Cartouche Canon GPR-18", "quantite": 5, "prix_unitaire": 4000},
-            {"fournisseur": "OFFICE Consommables", "designation": "Cartouche Canon CEXV42", "quantite": 5, "prix_unitaire": 4000},
-            {"fournisseur": "OFFICE Consommables", "designation": "LBP 6030 Canon 725", "quantite": 15, "prix_unitaire": 6000},
-            {"fournisseur": "A.M.C - OFFICE", "designation": "Split 12000 BTU", "quantite": 6, "prix_unitaire": 166650},
-            {"fournisseur": "A.M.C - OFFICE", "designation": "Split 18000 BTU", "quantite": 3, "prix_unitaire": 255000},
-            {"fournisseur": "A.M.C - OFFICE", "designation": "Split 24000 BTU", "quantite": 12, "prix_unitaire": 350000},
-            {"fournisseur": "OFFICE Consommables", "designation": "Stylo bleu", "quantite": 2500, "prix_unitaire": 35},
-            {"fournisseur": "OFFICE Consommables", "designation": "Stylo noir", "quantite": 1000, "prix_unitaire": 35},
-            {"fournisseur": "OFFICE Consommables", "designation": "Stylo rouge", "quantite": 500, "prix_unitaire": 35},
-            {"fournisseur": "OFFICE Consommables", "designation": "Marqueur (bleu/noir/rouge/vert)", "quantite": 100, "prix_unitaire": 150},
-            {"fournisseur": "OFFICE Consommables", "designation": "Blanco bic", "quantite": 200, "prix_unitaire": 125},
-            {"fournisseur": "OFFICE Consommables", "designation": "Chemise cartonnée", "quantite": 10000, "prix_unitaire": 25},
-            {"fournisseur": "OFFICE Consommables", "designation": "Crayon noir", "quantite": 200, "prix_unitaire": 50},
-            {"fournisseur": "OFFICE Consommables", "designation": "Gomme", "quantite": 100, "prix_unitaire": 75},
-            {"fournisseur": "OFFICE Consommables", "designation": "Registre 500p", "quantite": 3, "prix_unitaire": 4000},
-            {"fournisseur": "OFFICE Consommables", "designation": "Clavier USB", "quantite": 25, "prix_unitaire": 2500},
-            {"fournisseur": "OFFICE Consommables", "designation": "Classeur chrono", "quantite": 100, "prix_unitaire": 1000},
-            {"fournisseur": "OFFICE Consommables", "designation": "Recharge agrafe 24/6", "quantite": 250, "prix_unitaire": 100},
-            {"fournisseur": "OFFICE Consommables", "designation": "Agrafeuse GM", "quantite": 50, "prix_unitaire": 2000},
-            {"fournisseur": "OFFICE Consommables", "designation": "Baguette (3mm à 14mm)", "quantite": 15, "prix_unitaire": 100},
-            {"fournisseur": "OFFICE Consommables", "designation": "Surligneur", "quantite": 25, "prix_unitaire": 400},
-            {"fournisseur": "OFFICE Consommables", "designation": "Scotch GM", "quantite": 50, "prix_unitaire": 250},
-        ]
+        # --- Creating products from the Excel stock data ---
+        print("Creating products from Excel data...")
+        
+        try:
+            df = pd.read_excel(EXCEL_FILE_PATH, sheet_name=0)
+            df.columns = df.columns.str.strip().str.lower() # Normalize column names
+        except FileNotFoundError:
+            print(f"ERROR: Excel file not found at {EXCEL_FILE_PATH}.")
+            return
+        except Exception as e:
+            print(f"An error occurred while reading the Excel file: {e}")
+            return
+        
+        required_columns = {'reference', 'quantité', 'coût unitaire (cfa)'}
+        if not required_columns.issubset(df.columns):
+            print(f"ERROR: The Excel file must contain columns named 'Reference', 'Quantité' and 'Coût Unitaire (CFA)'. Found: {list(df.columns)}")
+            return
 
-        def get_category_for_product(name: str):
-            name = name.lower()
-            if any(term in name for term in ["scanner", "hp envy", "cartouche", "clavier", "split", "btu"]):
-                return category_informatique
-            if any(term in name for term in ["fauteuil", "frigo", "mobilier"]):
-                return category_mobilier
-            return category_fourniture  # Default for office supplies
+        # Check for duplicate references in the Excel file itself
+        duplicate_references = df[df.duplicated(subset=['reference'])]
+        if not duplicate_references.empty:
+            print("ERROR: Duplicate product references found in the Excel file:")
+            for index, row in duplicate_references.iterrows():
+                print(f" - Reference: {row['reference']}, Article: {row['article']}")
+            return
 
-        print("Creating products...")
-        import random
-        import string
 
-        for p_data in products_to_add:
-            category = get_category_for_product(p_data["designation"])
-            # Generate a more unique reference
-            random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-            reference = f"PF-{p_data['designation'][:5].upper().replace(' ', '')}-{random_suffix}"
+        for index, row in df.iterrows():
+            reference = str(row.get('reference')).strip()
+            article_name = str(row.get('article')).strip()
+            quantity = int(row.get('quantité'))
+            cost = float(str(row.get('coût unitaire (cfa)')).replace(',', '.'))
+            category_name_excel = str(row.get('catégorie')).strip()
 
+            # Get or create category based on Excel data
+            category = await get_or_create_category(prisma, category_name_excel)
+            
+            # Use a dummy minStock
+            min_stock = random.randint(5, 20) # Dummy min stock
+
+            print(f"Creating product with reference: {reference}")
             await prisma.product.create(data={
-                "name": p_data["designation"],
+                "name": article_name,
                 "reference": reference,
-                "quantity": p_data["quantite"],
-                "cost": p_data["prix_unitaire"] if p_data["prix_unitaire"] is not None else 0.0,
-                "unit": "Pièce",  # default unit
+                "quantity": quantity,
+                "minStock": min_stock,
+                "cost": cost,
+                "unit": "Unité", # Default unit
                 "categoryId": category.id,
             })
-        print("Products created.")
+        print(f"Created {len(df)} products from Excel data.")
 
     except Exception as e:
         import traceback

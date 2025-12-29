@@ -7,6 +7,7 @@ import { Box, Typography } from "@mui/material";
 
 const PurchaseOrderDetailsPage: React.FC = () => {
     const params = useParams();
+    const router = useRouter(); // Call useRouter hook at the top level
     const purchaseOrderId = params.id as string;
 
     if (!purchaseOrderId) {
@@ -18,8 +19,6 @@ const PurchaseOrderDetailsPage: React.FC = () => {
             </Box>
         );
     }
-
-    const router = useRouter(); // Call useRouter hook
 
     const handleBack = () => {
         router.back();

@@ -38,6 +38,7 @@ const DeliveryNotePrintable: React.FC<DeliveryNotePrintableProps> = ({ data }) =
     <Box sx={{ p: 4, fontFamily: 'Arial, sans-serif', fontSize: '12px', lineHeight: 1.5 }}>
       {/* Header */}
       <Box sx={{ textAlign: 'center', mb: 4 }}>
+        <img src="/Logo_PF.jpeg" alt="Postefinances Logo" style={{ width: '150px', height: 'auto', marginBottom: '20px' }} />
         <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', mb: 1 }}>BON DE LIVRAISON</Typography>
         <Typography variant="h6" component="h2" sx={{ mb: 2 }}>Postefinances - Gestion de Stock</Typography>
         <Typography variant="body2">Date d'impression: {new Date().toLocaleDateString('fr-FR')}</Typography>

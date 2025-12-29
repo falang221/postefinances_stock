@@ -73,14 +73,15 @@ const PurchaseOrderList: React.FC<PurchaseOrderListProps> = ({ onViewDetails, on
       case PurchaseOrderStatus.DRAFT:
         return 'info';
       case PurchaseOrderStatus.PENDING_APPROVAL:
+      case PurchaseOrderStatus.A_REVOIR:
         return 'warning';
       case PurchaseOrderStatus.APPROVED:
         return 'success';
-      case PurchaseOrderStatus.REJECTED:
+      case PurchaseOrderStatus.ANNULEE:
         return 'error';
       case PurchaseOrderStatus.ORDERED:
         return 'primary';
-      case PurchaseOrderStatus.RECEIVED:
+      case PurchaseOrderStatus.CLOTUREE:
         return 'secondary';
       default:
         return 'default';
@@ -116,6 +117,11 @@ const PurchaseOrderList: React.FC<PurchaseOrderListProps> = ({ onViewDetails, on
           <Button variant="contained" onClick={() => refetch()}>
             Actualiser
           </Button>
+          {user && (user.role === 'ADMIN' || user.role === 'DAF' || user.role === 'MAGASINIER') && !readOnly && (
+            <Button variant="contained" color="primary" onClick={onCreateNew}>
+              Créer un Bon de Commande
+            </Button>
+          )}
         </Box>
 
         {isLoading && <CircularProgress />}

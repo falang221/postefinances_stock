@@ -26,25 +26,29 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApiClient } from '@/api/client';
 import { PurchaseOrderPrintData, PurchaseOrderResponse, PurchaseOrderStatus, UserRole } from '@/types/api';
 import { useAuth } from '@/context/AuthContext';
-import { useNotification } from '@/context/NotificationContext'; // Add this import
-import { usePurchaseOrderApi } from '@/api/purchaseOrders'; // Import the hook
+import { useNotification } from '@/context/NotificationContext';
+import { usePurchaseOrderApi } from '@/api/purchaseOrders';
 import { format } from 'date-fns';
 
 interface PurchaseOrderDetailProps {
   purchaseOrderId: string;
   onBack: () => void;
   onUpdate: () => void;
-  readOnly?: boolean; // Added readOnly prop
+  readOnly?: boolean;
 }
+
+// Define the types for dialog actions based on the new workflow
+type DialogAction = 'submit' | 'approve' | 'request_revision' | 'order' | 'close' | 'cancel' | 'delete';
 
 const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({ purchaseOrderId, onBack, onUpdate, readOnly = false }) => {
   const { user } = useAuth();
-  const { showSnackbar } = useNotification(); // Initialize useNotification
+  const { showSnackbar } = useNotification();
   const queryClient = useQueryClient();
-  const { getPurchaseOrderById, updatePurchaseOrder } = usePurchaseOrderApi();
+  const { getPurchaseOrderById, updatePurchaseOrder, deletePurchaseOrder } = usePurchaseOrderApi();
+  const apiClient = useApiClient();
 
   const [openDialog, setOpenDialog] = useState<boolean>(false);
-  const [dialogAction, setDialogAction] = useState<'approve' | 'reject' | 'order' | 'receive' | null>(null);
+  const [dialogAction, setDialogAction] = useState<DialogAction | null>(null);
 
   const {
     data: purchaseOrder,
@@ -68,10 +72,29 @@ const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({ purchaseOrder
       onUpdate();
       setOpenDialog(false);
       setDialogAction(null);
+      showSnackbar("Statut de la commande mis à jour avec succès.", "success");
     },
+    onError: (err: Error) => {
+        showSnackbar(err.message, "error");
+    }
   });
 
-  const handleOpenDialog = (action: 'approve' | 'reject' | 'order' | 'receive') => {
+  const deleteMutation = useMutation({
+    mutationFn: () => {
+        if (!purchaseOrder) throw new Error("Purchase order not found");
+        return deletePurchaseOrder(purchaseOrder.id);
+    },
+    onSuccess: () => {
+        showSnackbar("Bon de commande supprimé avec succès.", "success");
+        queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] });
+        onBack(); // Go back to the list after deletion
+    },
+    onError: (err: Error) => {
+        showSnackbar(err.message, "error");
+    }
+  });
+
+  const handleOpenDialog = (action: DialogAction) => {
     setDialogAction(action);
     setOpenDialog(true);
   };
@@ -83,19 +106,31 @@ const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({ purchaseOrder
 
   const handleConfirmAction = () => {
     if (!dialogAction) return;
+
+    if (dialogAction === 'delete') {
+        deleteMutation.mutate();
+        return;
+    }
+    
     let newStatus: PurchaseOrderStatus;
     switch (dialogAction) {
+      case 'submit':
+        newStatus = PurchaseOrderStatus.PENDING_APPROVAL;
+        break;
       case 'approve':
         newStatus = PurchaseOrderStatus.APPROVED;
         break;
-      case 'reject':
-        newStatus = PurchaseOrderStatus.REJECTED;
+      case 'request_revision':
+        newStatus = PurchaseOrderStatus.A_REVOIR;
         break;
       case 'order':
         newStatus = PurchaseOrderStatus.ORDERED;
         break;
-      case 'receive':
-        newStatus = PurchaseOrderStatus.RECEIVED;
+      case 'close':
+        newStatus = PurchaseOrderStatus.CLOTUREE;
+        break;
+      case 'cancel':
+        newStatus = PurchaseOrderStatus.ANNULEE;
         break;
       default:
         return;
@@ -115,19 +150,45 @@ const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({ purchaseOrder
     return <Alert severity="warning">Bon de commande non trouvé.</Alert>;
   }
 
-  const apiClient = useApiClient();
+  const handleDownloadPDF = async () => {
+    if (!purchaseOrder) return;
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api'}/purchase-orders/${purchaseOrder.id}/pdf`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) throw new Error('Erreur lors du téléchargement du PDF');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Bon_Commande_${purchaseOrder.orderNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error: any) {
+      console.error('Error downloading PDF:', error);
+      showSnackbar('Erreur lors de la génération du PDF.', 'error');
+    }
+  };
 
   const handlePrintPurchaseOrder = async () => {
+    // This function remains largely the same
     if (!purchaseOrder) return;
     try {
       const data: PurchaseOrderPrintData = await apiClient.get<PurchaseOrderPrintData>(`/purchase-orders/${purchaseOrder.id}/purchase-order-data`);
 
       const printWindow = window.open('', '_blank', 'width=800,height=600');
       if (!printWindow) {
-        // Handle popup blocker
+        showSnackbar("Veuillez autoriser les pop-ups pour imprimer.", "warning");
         return;
       }
 
+      // Print content template...
       const printContent = `
         <!DOCTYPE html>
         <html>
@@ -201,26 +262,46 @@ const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({ purchaseOrder
 
       printWindow.document.write(printContent);
       printWindow.document.close();
-
-      // Use onload and onafterprint events for better print management
       printWindow.onload = () => {
         printWindow.focus();
         printWindow.print();
-      };
-      printWindow.onafterprint = () => {
         printWindow.close();
       };
-    } catch (error: any) { // Add : any for error type
+    } catch (error: any) {
       console.error('Error printing purchase order:', error);
-      // Add user feedback using showSnackbar
       showSnackbar(error.detail || 'Erreur lors de la génération du bon de commande.', 'error');
     }
   };
 
-  const canApproveReject = !readOnly && user?.role === UserRole.DAF && purchaseOrder.status === PurchaseOrderStatus.PENDING_APPROVAL;
+  // --- NEW Action Button Logic ---
+  const isCreator = user?.id === purchaseOrder.requestedById;
+  console.log('DEBUG: isCreator?', isCreator);
+  console.log('DEBUG: user.id', user?.id);
+  console.log('DEBUG: purchaseOrder.requestedById', purchaseOrder.requestedById);
+
+  const isFinalState = [PurchaseOrderStatus.CLOTUREE, PurchaseOrderStatus.ANNULEE].includes(purchaseOrder.status);
+
+  const canEditOrDelete = !readOnly && isCreator && (purchaseOrder.status === PurchaseOrderStatus.DRAFT || purchaseOrder.status === PurchaseOrderStatus.A_REVOIR);
+  const canSubmit = !readOnly && isCreator && (purchaseOrder.status === PurchaseOrderStatus.DRAFT || purchaseOrder.status === PurchaseOrderStatus.A_REVOIR);
+  const canApproveOrRequestRevision = !readOnly && user?.role === UserRole.DAF && purchaseOrder.status === PurchaseOrderStatus.PENDING_APPROVAL;
   const canOrder = !readOnly && user?.role === UserRole.MAGASINIER && purchaseOrder.status === PurchaseOrderStatus.APPROVED;
-  const canReceive = !readOnly && user?.role === UserRole.MAGASINIER && purchaseOrder.status === PurchaseOrderStatus.ORDERED;
-  const canPrint = purchaseOrder.status === PurchaseOrderStatus.APPROVED || purchaseOrder.status === PurchaseOrderStatus.ORDERED || purchaseOrder.status === PurchaseOrderStatus.RECEIVED;
+  const canClose = !readOnly && user?.role === UserRole.MAGASINIER && purchaseOrder.status === PurchaseOrderStatus.ORDERED;
+  const canCancel = !readOnly && (user?.role === UserRole.ADMIN || user?.role === UserRole.DAF) && !isFinalState;
+  const canPrint = [PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.ORDERED, PurchaseOrderStatus.CLOTUREE].includes(purchaseOrder.status);
+
+  const getDialogText = (action: DialogAction | 'delete' | null) => {
+    switch (action) {
+      case 'submit': return "soumettre pour approbation";
+      case 'approve': return "approuver";
+      case 'request_revision': return "renvoyer pour révision";
+      case 'order': return "marquer comme commandé";
+      case 'close': return "clôturer (confirmer la réception)";
+      case 'cancel': return "annuler";
+      case 'delete': return "supprimer définitivement";
+      default: return "";
+    }
+  };
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ mt: 4, p: 3, boxShadow: 3, borderRadius: 2, bgcolor: 'background.paper' }}>
@@ -235,7 +316,13 @@ const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({ purchaseOrder
             {updateStatusMutation.error.message}
           </Alert>
         )}
+         {deleteMutation.isError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {deleteMutation.error.message}
+          </Alert>
+        )}
 
+        {/* Details Table ... */}
         <TableContainer component={Paper} sx={{ mb: 3 }}>
           <Table size="small">
             <TableBody>
@@ -271,6 +358,7 @@ const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({ purchaseOrder
           </Table>
         </TableContainer>
 
+        {/* Items Table ... */}
         <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>Articles du Bon de Commande</Typography>
         <TableContainer component={Paper}>
           <Table size="small">
@@ -297,80 +385,71 @@ const PurchaseOrderDetail: React.FC<PurchaseOrderDetailProps> = ({ purchaseOrder
           </Table>
         </TableContainer>
 
+        {/* Action Buttons Box */}
         <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
           {canPrint && (
-            <Button
-              variant="outlined"
-              color="info"
-              onClick={handlePrintPurchaseOrder}
-            >
-              Imprimer Bon de Commande
+            <>
+              <Button variant="contained" color="info" onClick={handleDownloadPDF}>
+                Télécharger PDF (Pro)
+              </Button>
+              <Button variant="outlined" color="info" onClick={handlePrintPurchaseOrder}>
+                Imprimer
+              </Button>
+            </>
+          )}
+          {canEditOrDelete && (
+            <>
+                <Button variant="outlined" color="secondary" onClick={() => { /* TODO: Navigate to edit page */ }}>
+                    Modifier
+                </Button>
+                 <Button variant="outlined" color="error" onClick={() => handleOpenDialog('delete')}>
+                    Supprimer
+                </Button>
+            </>
+          )}
+          {canSubmit && (
+            <Button variant="contained" onClick={() => handleOpenDialog('submit')} disabled={updateStatusMutation.isPending}>
+              Soumettre pour Approbation
             </Button>
           )}
-          {canApproveReject && (
+          {canApproveOrRequestRevision && (
             <>
-              <Button
-                variant="contained"
-                color="success"
-                onClick={() => handleOpenDialog('approve')}
-                disabled={updateStatusMutation.isPending}
-              >
-                {updateStatusMutation.isPending && dialogAction === 'approve' ? <CircularProgress size={24} /> : 'Approuver'}
+              <Button variant="contained" color="success" onClick={() => handleOpenDialog('approve')} disabled={updateStatusMutation.isPending}>
+                Approuver
               </Button>
-              <Button
-                variant="contained"
-                color="error"
-                onClick={() => handleOpenDialog('reject')}
-                disabled={updateStatusMutation.isPending}
-              >
-                {updateStatusMutation.isPending && dialogAction === 'reject' ? <CircularProgress size={24} /> : 'Rejeter'}
+              <Button variant="outlined" color="warning" onClick={() => handleOpenDialog('request_revision')} disabled={updateStatusMutation.isPending}>
+                Demander une Révision
               </Button>
             </>
           )}
           {canOrder && (
-            <Button
-              variant="contained"
-              onClick={() => handleOpenDialog('order')}
-              disabled={updateStatusMutation.isPending}
-            >
-              {updateStatusMutation.isPending && dialogAction === 'order' ? <CircularProgress size={24} /> : 'Marquer comme Commandé'}
+            <Button variant="contained" onClick={() => handleOpenDialog('order')} disabled={updateStatusMutation.isPending}>
+              Marquer comme Commandé
             </Button>
           )}
-          {canReceive && (
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={() => handleOpenDialog('receive')}
-              disabled={updateStatusMutation.isPending}
-            >
-              {updateStatusMutation.isPending && dialogAction === 'receive' ? <CircularProgress size={24} /> : 'Marquer comme Reçu'}
+          {canClose && (
+            <Button variant="contained" color="primary" onClick={() => handleOpenDialog('close')} disabled={updateStatusMutation.isPending}>
+              Clôturer (Réception)
+            </Button>
+          )}
+          {canCancel && (
+             <Button variant="contained" color="error" onClick={() => handleOpenDialog('cancel')} disabled={updateStatusMutation.isPending}>
+              Annuler la commande
             </Button>
           )}
         </Box>
 
-        <Dialog
-          open={openDialog}
-          onClose={handleCloseDialog}
-          aria-labelledby="alert-dialog-title"
-          aria-describedby="alert-dialog-description"
-        >
-          <DialogTitle id="alert-dialog-title">
-            {dialogAction === 'approve' && "Confirmer l'approbation"}
-            {dialogAction === 'reject' && "Confirmer le rejet"}
-            {dialogAction === 'order' && "Confirmer la commande"}
-            {dialogAction === 'receive' && "Confirmer la réception"}
-          </DialogTitle>
+        {/* Confirmation Dialog */}
+        <Dialog open={openDialog} onClose={handleCloseDialog}>
+          <DialogTitle>Confirmation</DialogTitle>
           <DialogContent>
-            <DialogContentText id="alert-dialog-description">
-              Êtes-vous sûr de vouloir {dialogAction === 'approve' && "approuver"}
-              {dialogAction === 'reject' && "rejeter"}
-              {dialogAction === 'order' && "marquer comme commandé"}
-              {dialogAction === 'receive' && "marquer comme reçu"} ce bon de commande ?
+            <DialogContentText>
+              Êtes-vous sûr de vouloir {getDialogText(dialogAction)} ce bon de commande ?
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseDialog} disabled={updateStatusMutation.isPending}>Annuler</Button>
-            <Button onClick={handleConfirmAction} autoFocus disabled={updateStatusMutation.isPending}>
+            <Button onClick={handleCloseDialog} disabled={updateStatusMutation.isPending || deleteMutation.isPending}>Annuler</Button>
+            <Button onClick={handleConfirmAction} autoFocus disabled={updateStatusMutation.isPending || deleteMutation.isPending}>
               Confirmer
             </Button>
           </DialogActions>

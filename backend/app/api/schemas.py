@@ -330,6 +330,12 @@ class StockReceiptDecision(BaseModel):
     comment: Optional[str] = None
 
 
+class StockAdjustmentDirectCreate(BaseModel):
+    productId: str
+    newQuantity: int
+    reason: str
+
+
 # Dashboard Schemas
 class DashboardStats(BaseModel):
     lowStock: int

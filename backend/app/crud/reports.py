@@ -127,7 +127,8 @@ async def get_stock_requests_report(
     db: Prisma,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
-    requester_id: Optional[str] = None
+    requester_id: Optional[str] = None,
+    status: Optional[str] = None
 ):
     """
     Récupère un rapport détaillé des demandes de stock, y compris les temps de traitement.
@@ -139,6 +140,8 @@ async def get_stock_requests_report(
         where_conditions.setdefault("createdAt", {})["lte"] = end_date
     if requester_id:
         where_conditions["requesterId"] = requester_id
+    if status:
+        where_conditions["status"] = status
 
     requests = await db.request.find_many(
         where=where_conditions,

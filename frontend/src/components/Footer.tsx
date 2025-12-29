@@ -22,7 +22,7 @@ const Footer: React.FC = () => {
           Développé par Abdourahmane NDIAYE (a.ndiaye2012@gmail.com)
         </Typography>
         <Typography variant="caption" color="text.secondary" align="center" component="p">
-          Cette application est destinée à un usage interne. Toute reproduction ou vente est interdite sans autorisation préalable.
+          Ce logiciel est destiné à un usage interne. Toute reproduction ou vente est interdite sans autorisation préalable.
         </Typography>
       </Container>
     </Box>

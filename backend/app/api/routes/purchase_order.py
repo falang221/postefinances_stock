@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from database.generated.prisma import Prisma
 from database.generated.prisma.models import PurchaseOrder, User
 from database.generated.prisma.enums import PurchaseOrderStatus, UserRole, TransactionType # Added TransactionType
@@ -18,6 +18,7 @@ from app.api.auth import get_current_user, role_required
 from app.websockets import manager
 from app.database import get_db # Added get_db import
 from app.services import purchase_order_service # NEW
+from app.services.pdf_service import PDFService # NEW
 from app.crud.purchase_order import (
     create_purchase_order as crud_create_purchase_order,
     get_purchase_order as crud_get_purchase_order,
@@ -161,6 +162,44 @@ async def get_purchase_order_print_data(order_id: str, db: Prisma = Depends(get_
     )
 
 
+@router.get(
+    "/purchase-orders/{order_id}/pdf",
+    dependencies=[Depends(role_required([UserRole.MAGASINIER, UserRole.DAF, UserRole.ADMIN, UserRole.SUPER_OBSERVATEUR]))]
+)
+async def download_purchase_order_pdf(
+    order_id: str,
+    db: Prisma = Depends(get_db),
+    pdf_service: PDFService = Depends()
+):
+    """
+    Generate and download a PDF for a purchase order.
+    """
+    purchase_order = await db.purchaseorder.find_unique(
+        where={"id": order_id},
+        include={"items": {"include": {"product": True}}, "requestedBy": True, "approvedBy": True},
+    )
+    
+    if not purchase_order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Purchase Order not found"
+        )
+    
+    # Convert to dict for the service
+    order_data = purchase_order.model_dump()
+    
+    pdf_bytes = pdf_service.generate_purchase_order_pdf(order_data)
+    
+    filename = f"Bon_Commande_{purchase_order.orderNumber}.pdf"
+    
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
+
+
 @router.put(
     "/purchase-orders/{order_id}",
     response_model=PurchaseOrderResponse,
@@ -186,14 +225,34 @@ async def update_purchase_order(
 
 @router.delete(
     "/purchase-orders/{order_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(role_required([UserRole.ADMIN]))]
+    status_code=status.HTTP_204_NO_CONTENT
 )
-async def delete_purchase_order(order_id: str, db: Prisma = Depends(get_db)):
+async def delete_purchase_order(
+    order_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Prisma = Depends(get_db)
+):
     """
-    Delete a purchase order.
+    Deletes a purchase order.
+    Allowed if:
+    - User is an ADMIN.
+    - User is the creator AND the order status is DRAFT or A_REVOIR.
     """
     try:
+        po_to_delete = await db.purchaseorder.find_unique(where={"id": order_id})
+        if not po_to_delete:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase Order not found")
+
+        is_creator = po_to_delete.requestedById == current_user.id
+        is_admin = current_user.role == UserRole.ADMIN
+        is_deletable_status = po_to_delete.status in [PurchaseOrderStatus.DRAFT, PurchaseOrderStatus.A_REVOIR]
+
+        if not (is_admin or (is_creator and is_deletable_status)):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to delete this purchase order at its current status."
+            )
+
         await crud_delete_purchase_order(db, order_id)
         return {"message": "Purchase Order deleted successfully"}
     except ValueError as e:

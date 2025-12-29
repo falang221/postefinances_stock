@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     libgdk-pixbuf-2.0-0 \
     libxml2-dev \
     libxslt1-dev \
+    libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Installer les dépendances Python via PDM (gestionnaire de paquets)
@@ -26,10 +27,15 @@ RUN pip install pdm
 COPY pyproject.toml pdm.lock README.md /app/
 
 # Installer les dépendances de production uniquement
-RUN pdm install --prod --no-lock
+RUN PDM_PARALLEL_JOBS=1 pdm install --prod --frozen-lockfile
 
 # Copier le reste de l'application
 COPY . .
+
+
+# Copier le script d'entrée et le rendre exécutable
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Générer le client Prisma
 RUN pdm run prisma generate --schema ./database/schema.prisma
@@ -37,7 +43,5 @@ RUN pdm run prisma generate --schema ./database/schema.prisma
 # Exposer le port sur lequel l'application tournera
 EXPOSE 8000
 
-# Commande pour lancer l'application en production avec Gunicorn
-# Gunicorn est un serveur WSGI de production robuste.
-# UvicornWorker permet à Gunicorn de lancer des applications ASGI comme FastAPI.
-CMD ["sh", "-c", "pdm run prisma migrate deploy --schema ./database/schema.prisma && pdm run gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app -b 0.0.0.0:8000"]
+# Utiliser le script d'entrée
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

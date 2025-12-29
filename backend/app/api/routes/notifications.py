@@ -1,9 +1,22 @@
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, status
-
-from app.api.auth import get_user_id_from_token
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
+from app.api.auth import get_user_id_from_token, get_current_user, CurrentUser
 from app.websockets import manager
+from app.services.notification_service import NotificationService
 
-router = APIRouter()
+router = APIRouter(prefix="/notifications", tags=["Notifications"])
+
+
+@router.get("/counts")
+async def get_counts(
+    current_user: CurrentUser = Depends(get_current_user),
+    notification_service: NotificationService = Depends(),
+):
+    """
+    Retrieves the counts of pending actions and notifications for the current user.
+    The response structure depends on the user's role.
+    """
+    counts = await notification_service.get_notification_counts(current_user)
+    return counts
 
 
 @router.websocket("/ws/{token}")

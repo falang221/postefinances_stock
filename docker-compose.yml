@@ -28,14 +28,11 @@ services:
       - ./backend/.env.prod
     ports:
       - "8000:8000"
+    volumes:
+      - ./users.xlsx:/app/users.xlsx # Mount users.xlsx from host root to container /app/users.xlsx
     restart: unless-stopped
     networks:
       - stock_app_network
-    command: >
-      /bin/sh -c "
-      pdm run prisma migrate deploy --schema ./database/schema.prisma &&
-      pdm run gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app -b 0.0.0.0:8000
-      "
 
   frontend:
     build:

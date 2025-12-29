@@ -73,6 +73,10 @@ model Request {
   
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+
+  @@index([status])
+  @@index([requesterId])
+  @@index([createdAt])
 }
 
 model RequestItem {
@@ -92,6 +96,9 @@ model RequestItem {
   itemDisputeStatus RequestItemDisputeStatus @default(NO_DISPUTE)
   
   createdAt    DateTime @default(now())
+
+  @@index([requestId])
+  @@index([productId])
 }
 
 model Approval {
@@ -127,6 +134,8 @@ model Product {
   stockReceipts StockReceipt[]
   purchaseOrderItems PurchaseOrderItem[]
   inventoryAuditItems InventoryAuditItem[]
+
+  @@index([categoryId])
 }
 
 model Category {
@@ -145,6 +154,10 @@ model Transaction {
   source      TransactionSource @default(ADJUSTMENT) // Default to ADJUSTMENT for existing logic
   quantity    Int
   createdAt   DateTime     @default(now())
+
+  @@index([productId])
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model StockAdjustment {
@@ -168,6 +181,10 @@ model StockAdjustment {
 
   createdAt      DateTime               @default(now())
   updatedAt      DateTime               @updatedAt
+
+  @@index([productId])
+  @@index([status])
+  @@index([requestedById])
 }
 
 model StockReceipt {
@@ -186,6 +203,10 @@ model StockReceipt {
   dafComment     String?
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
+
+  @@index([productId])
+  @@index([status])
+  @@index([requestedById])
 }
 
 model PurchaseOrder {
@@ -206,6 +227,9 @@ model PurchaseOrder {
   
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
+
+  @@index([status])
+  @@index([requestedById])
 }
 
 model PurchaseOrderItem {
@@ -243,6 +267,9 @@ model InventoryAudit {
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   completedAt   DateTime?
+
+  @@index([status])
+  @@index([createdById])
 }
 
 model InventoryAuditItem {
@@ -261,6 +288,8 @@ model InventoryAuditItem {
   updatedAt       DateTime       @updatedAt
 
   @@unique([auditId, productId])
+  @@index([auditId])
+  @@index([productId])
 }
 
 // Enumérations
@@ -320,9 +349,10 @@ enum PurchaseOrderStatus {
   DRAFT
   PENDING_APPROVAL
   APPROVED
-  REJECTED
+  A_REVOIR
   ORDERED
-  RECEIVED
+  CLOTUREE
+  ANNULEE
 }
 
 enum InventoryAuditStatus {

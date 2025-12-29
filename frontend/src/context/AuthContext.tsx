@@ -6,7 +6,7 @@ import { jwtDecode } from 'jwt-decode';
 import { UserFullResponse, UserRole } from '@/types/api'; // Import UserFullResponse and UserRole
 
 interface DecodedToken {
-  userId: string;
+  id: string;
   username: string;
   email: string;
   name: string;
@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
           setToken(storedToken);
           setUser({
-            id: decoded.userId,
+            id: decoded.id,
             username: decoded.username,
             name: decoded.name,
             email: decoded.email,
@@ -93,7 +93,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return;
       }
       setUser({
-        id: decoded.userId,
+        id: decoded.id,
         username: decoded.username,
         name: decoded.name,
         email: decoded.email,

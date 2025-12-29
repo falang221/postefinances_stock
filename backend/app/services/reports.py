@@ -29,12 +29,13 @@ class ReportService:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        requester_id: Optional[str] = None
+        requester_id: Optional[str] = None,
+        status: Optional[str] = None
     ):
         """
         Orchestre la récupération du rapport des demandes de stock.
         """
-        report_data = await crud_reports.get_stock_requests_report(self.db, start_date, end_date, requester_id)
+        report_data = await crud_reports.get_stock_requests_report(self.db, start_date, end_date, requester_id, status)
         return report_data
 
     async def get_stock_history_report(
@@ -60,3 +61,17 @@ class ReportService:
         """
         report_data = await crud_reports.get_stock_value_report(self.db)
         return report_data
+
+    async def get_stock_status_report(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        status_filter: Optional[str] = None,
+        category_id: Optional[str] = None
+    ):
+        """
+        Orchestre la récupération du rapport de statut du stock.
+        """
+        return await crud_reports.get_stock_status_report(
+            self.db, page, page_size, status_filter, category_id
+        )

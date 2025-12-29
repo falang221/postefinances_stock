@@ -95,6 +95,7 @@ function Dashboard() {
 
   switch (user.role) {
     case UserRole.ADMIN:
+    case UserRole.USER_MANAGER: // USER_MANAGER sees the same dashboard as ADMIN
       return <AdminDashboard />;
     case UserRole.CHEF_SERVICE:
       return <ChefServiceDashboard />;
