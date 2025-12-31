@@ -31,7 +31,7 @@ services:
       - "8000:8000"
     volumes:
       - ./users.xlsx:/app/users.xlsx # Mount users.xlsx from host root to container /app/users.xlsx
-      - ./backend/stock.xlsx:/app/stock.xlsx # Mount stock.xlsx from backend dir to container /app/stock.xlsx
+      - ./stock.xlsx:/app/stock.xlsx # Mount stock.xlsx from project root to container /app/stock.xlsx
     restart: unless-stopped
     networks:
       - stock_app_network
