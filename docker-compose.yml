@@ -21,6 +21,7 @@ services:
     restart: unless-stopped
 
   backend:
+    image: abdou2012/postefinances_stock_appv1:backend
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -35,6 +36,7 @@ services:
       - stock_app_network
 
   frontend:
+    image: abdou2012/postefinances_stock_appv1:frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile

@@ -1,130 +1,103 @@
 # backend/batch_create_users.py
 import asyncio
 import pandas as pd
-import requests
-from typing import Optional
+from prisma import Prisma
+from app.api.auth import get_password_hash
+from database.generated.prisma.enums import UserRole
 
-# --- Configuration ---
-BASE_URL = "http://localhost:8000/api"
-LOGIN_ENDPOINT = f"{BASE_URL}/auth/login"
-USERS_ENDPOINT = f"{BASE_URL}/users/"
-EXCEL_FILE_PATH = "/app/users.xlsx" # Absolute path within the container
+# Chemin vers le fichier Excel des utilisateurs (depuis la racine du conteneur /app)
+EXCEL_FILE_PATH = "/app/users.xlsx"
 
-# Admin credentials from the seed script
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "password"
-
-# Mapping from French role names in Excel to UserRole enum values in the backend
-ROLE_MAPPING = {
-    "chef de service": "CHEF_SERVICE",
-    "admin": "ADMIN",
-    "magasinier": "MAGASINIER",
-    "daf": "DAF",
-    "super observateur": "SUPER_OBSERVATEUR",
-}
-
-
-def get_auth_token(session: requests.Session, username: str, password: str) -> Optional[str]:
-    """Obtains a JWT token and sets it in the session header."""
-    print(f"Attempting to log in as {username}...")
-    try:
-        response = session.post(LOGIN_ENDPOINT, json={"username": username, "password": password})
-        response.raise_for_status()
-        token = response.json().get("access_token")
-        if not token:
-            print("Error: Access token not found in login response.")
-            return None
-        
-        session.headers.update({"Authorization": f"Bearer {token}"})
-        print("Login successful. Token obtained.")
-        return token
-    except requests.exceptions.RequestException as e:
-        print(f"Login failed: {e}")
-        if e.response is not None:
-            print(f"Response: {e.response.status_code} - {e.response.text}")
-        return None
-
-
-def create_user(session: requests.Session, user_data: dict) -> bool:
-    """Creates a single user via the API."""
-    print(f"Creating user with username: {user_data.get('username')}...")
-    try:
-        response = session.post(USERS_ENDPOINT, json=user_data)
-        response.raise_for_status()
-        print(f"  -> Success: User '{user_data.get('username')}' created with ID: {response.json()['id']}")
-        return True
-    except requests.exceptions.RequestException as e:
-        print(f"  -> Failed to create user '{user_data.get('username')}': {e}")
-        if e.response is not None:
-            print(f"     Response: {e.response.status_code} - {e.response.text}")
-        return False
-
-def main():
-    """Main function to run the user creation script."""
-    print("--- Starting Batch User Creation Script ---")
+async def batch_create_users():
+    prisma = Prisma()
+    await prisma.connect()
 
     try:
+        print(f"Attempting to read users from {EXCEL_FILE_PATH}...")
         df = pd.read_excel(EXCEL_FILE_PATH, sheet_name=0)
-        df.columns = df.columns.str.strip().str.lower()
-    except FileNotFoundError:
-        print(f"ERROR: Excel file not found at {EXCEL_FILE_PATH}.")
-        print("Please ensure you have mounted the 'users.xlsx' file in docker-compose.yml.")
-        return
-    except Exception as e:
-        print(f"An error occurred while reading the Excel file: {e}")
-        return
+        df.columns = df.columns.str.strip().str.lower() # Normaliser les noms de colonnes
 
-    required_columns = {'nom', 'login', 'mot de passe', 'role'}
-    if not required_columns.issubset(df.columns):
-        print(f"ERROR: The Excel file must contain columns named 'Nom', 'login', 'mot de passe', and 'Role'. Found: {list(df.columns)}")
-        return
-
-    with requests.Session() as session:
-        token = get_auth_token(session, ADMIN_USERNAME, ADMIN_PASSWORD)
-        if not token:
-            print("Aborting script due to authentication failure.")
+        required_columns = {'username', 'email', 'name', 'password', 'role', 'department'}
+        if not required_columns.issubset(df.columns):
+            print(f"ERROR: The Excel file must contain columns: {', '.join(required_columns)}.")
+            print(f"Found columns: {', '.join(df.columns)}")
             return
 
-        success_count = 0
-        fail_count = 0
+        created_count = 0
+        updated_count = 0
+        skipped_count = 0
 
         for index, row in df.iterrows():
-            login = str(row.get('login', '')).strip()
-            nom = str(row.get('nom', '')).strip()
-            mot_de_passe = str(row.get('mot de passe', '')).strip()
-            role_excel = str(row.get('role', '')).strip().lower()
-            departement = str(row.get('département', '')).strip() if 'département' in row and pd.notna(row.get('département')) else None
+            username = str(row.get('username')).strip()
+            email = str(row.get('email')).strip() if pd.notna(row.get('email')) else None
+            name = str(row.get('name')).strip()
+            password = str(row.get('password')).strip()
+            role_str = str(row.get('role')).strip().upper()
+            department = str(row.get('department')).strip() if pd.notna(row.get('department')) else None
 
-            if not all([login, nom, mot_de_passe, role_excel]):
-                print(f"Skipping row {index + 2}: Missing one or more required fields (login, nom, mot de passe, role).")
-                fail_count += 1
-                continue
-            
-            role_api = ROLE_MAPPING.get(role_excel)
-            if not role_api:
-                print(f"Skipping user '{login}': Role '{role_excel}' is not valid. Valid roles are: {list(ROLE_MAPPING.keys())}")
-                fail_count += 1
+            if not username or not name or not password or not role_str:
+                print(f"Skipping row {index + 1}: Missing required data (username, name, password, role).")
+                skipped_count += 1
                 continue
 
-            user_payload = {
-                "username": login,
-                "name": nom,
-                "password": mot_de_passe,
-                "role": role_api,
-                "department": departement,
-                "email": None # Assuming no email from Excel for now
-            }
+            if role_str not in UserRole.__members__:
+                print(f"Skipping row {index + 1} (Username: {username}): Invalid role '{role_str}'.")
+                skipped_count += 1
+                continue
             
-            if create_user(session, user_payload):
-                success_count += 1
-            else:
-                fail_count += 1
-    
-    print("\n--- Script Summary ---")
-    print(f"Successful user creations: {success_count}")
-    print(f"Failed/Skipped items: {fail_count}")
-    print("--- Batch User Creation Finished ---")
+            # Hash the password
+            hashed_password = get_password_hash(password)
 
+            try:
+                user = await prisma.user.upsert(
+                    where={"username": username},
+                    data={
+                        "create": {
+                            "username": username,
+                            "email": email,
+                            "name": name,
+                            "password": hashed_password,
+                            "role": UserRole[role_str],
+                            "department": department,
+                        },
+                        "update": { # Update existing user if username matches
+                            "email": email,
+                            "name": name,
+                            "password": hashed_password,
+                            "role": UserRole[role_str],
+                            "department": department,
+                        },
+                    },
+                )
+                if user:
+                    if user.id: # Check if it's an update or create
+                        print(f"User '{username}' created or updated.")
+                        if 'id' in row and row['id'] == user.id: # Simple heuristic to guess if it's an update
+                            updated_count += 1
+                        else:
+                            created_count += 1
+                else:
+                    skipped_count += 1
+
+            except Exception as e:
+                print(f"Error creating/updating user '{username}': {e}")
+                skipped_count += 1
+
+        print("\n--- User Batch Creation Summary ---")
+        print(f"Users created: {created_count}")
+        print(f"Users updated: {updated_count}")
+        print(f"Users skipped (errors/missing data): {skipped_count}")
+
+    except FileNotFoundError:
+        print(f"ERROR: Excel file not found at {EXCEL_FILE_PATH}.")
+        print("Please ensure 'users.xlsx' is in the project root.")
+    except Exception as e:
+        import traceback
+        print(f"An unexpected error occurred: {e}")
+        traceback.print_exc()
+    finally:
+        await prisma.disconnect()
+        print("Batch user creation complete. Prisma client disconnected.")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(batch_create_users())

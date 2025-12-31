@@ -19,6 +19,7 @@ distribution = true
 
 [tool.pdm.scripts]
 seed = "python seed.py"
+batch-users = "python batch_create_users.py"
 dev = "uvicorn main:app --reload"
 start = "uvicorn main:app"
 "test:cov" = "pytest --cov=app --cov-report=html --cov-report=term"
